@@ -57,7 +57,7 @@ class CreateTransferUseCase:
         if inp.currency and inp.currency != source_account.currency:
             raise BusinessRuleError(code="CURRENCY_MISMATCH", message="Moneda no coincide con cuenta origen")
 
-        # Crear transacción de salida
+        # Crear transacción de salida (expense desde cuenta origen)
         tx_out = Transaction.create_expense(
             user_id=inp.user_id, account_id=inp.source_account_id,
             amount=inp.amount, currency=source_account.currency,
@@ -65,13 +65,19 @@ class CreateTransferUseCase:
         )
         await self._tx_repo.save(tx_out)
 
-        # Crear transacción de entrada
+        # Crear transacción de entrada (income a cuenta destino)
         tx_in = Transaction.create_income(
             user_id=inp.user_id, account_id=inp.destination_account_id,
             amount=inp.amount, currency=dest_account.currency,
             description=f"Transferencia desde {source_account.name}",
         )
         await self._tx_repo.save(tx_in)
+
+        # Actualizar balances de ambas cuentas
+        updated_source = source_account.apply_expense(inp.amount)
+        updated_dest = dest_account.apply_income(inp.amount)
+        await self._account_repo.save(updated_source)
+        await self._account_repo.save(updated_dest)
 
         # Crear transferencia
         transfer = Transfer.create(

@@ -24,6 +24,7 @@ class User:
     name: str
     phone: str
     email: str = ""
+    password_hash: str = ""
     timezone: str = "America/Lima"
     currency: str = "PEN"
     created_at: datetime = field(default_factory=_utcnow)
@@ -46,6 +47,7 @@ class User:
         name: str,
         phone: str,
         email: str = "",
+        password_hash: str = "",
         timezone: str = "America/Lima",
         currency: str = "PEN",
     ) -> User:
@@ -55,6 +57,7 @@ class User:
             name=name.strip(),
             phone=phone.strip(),
             email=email.strip().lower(),
+            password_hash=password_hash,
             timezone=timezone.strip(),
             currency=currency.strip().upper(),
             created_at=now,
@@ -69,6 +72,7 @@ class User:
         name: str,
         phone: str,
         email: str = "",
+        password_hash: str = "",
         timezone: str = "America/Lima",
         currency: str = "PEN",
         created_at: datetime,
@@ -79,6 +83,7 @@ class User:
             name=name,
             phone=phone,
             email=email,
+            password_hash=password_hash,
             timezone=timezone,
             currency=currency,
             created_at=created_at,
@@ -98,6 +103,7 @@ class User:
             name=name.strip() if name is not None else self.name,
             phone=self.phone,
             email=email.strip().lower() if email is not None else self.email,
+            password_hash=self.password_hash,
             timezone=timezone.strip() if timezone is not None else self.timezone,
             currency=currency.strip().upper() if currency is not None else self.currency,
             created_at=self.created_at,

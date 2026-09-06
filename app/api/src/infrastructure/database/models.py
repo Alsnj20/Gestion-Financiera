@@ -44,6 +44,7 @@ class UserModel(Base):
     name: Mapped[str] = mapped_column(STR_120, nullable=False)
     phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="America/Lima", server_default="America/Lima")
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="PEN", server_default="PEN")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)

@@ -7,6 +7,7 @@ class CreateUserRequestSchema(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     phone: str = Field(..., min_length=7, max_length=20)
     email: EmailStr | str = ""
+    password: str = Field(..., min_length=6, max_length=128)
     timezone: str = Field(default="America/Lima", max_length=64)
     currency: str = Field(default="PEN", max_length=10)
 
@@ -16,6 +17,7 @@ class CreateUserRequestSchema(BaseModel):
             name=self.name,
             phone=self.phone,
             email=self.email,
+            password=self.password,
             timezone=self.timezone,
             currency=self.currency,
         )

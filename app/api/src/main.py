@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from modules.users.presentation.router import router as users_router
@@ -16,6 +17,8 @@ from modules.debts.presentation.router import router as debts_router
 from modules.recurring_expenses.presentation.router import router as recurring_expenses_router
 from modules.audit_logs.presentation.router import router as audit_logs_router
 from modules.conversations.presentation.router import router as conversations_router
+from modules.auth.presentation.router import router as auth_router
+from modules.reports.presentation.router import router as reports_router
 from shared.errors import ConflictError, ValidationError
 
 app = FastAPI(
@@ -23,6 +26,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Auth routes (public)
+app.include_router(auth_router)
+
+# Protected routes
 app.include_router(users_router)
 app.include_router(accounts_router)
 app.include_router(transactions_router)
@@ -38,6 +54,7 @@ app.include_router(debts_router)
 app.include_router(recurring_expenses_router)
 app.include_router(audit_logs_router)
 app.include_router(conversations_router)
+app.include_router(reports_router)
 
 
 @app.exception_handler(ValidationError)

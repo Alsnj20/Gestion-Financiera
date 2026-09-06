@@ -13,6 +13,7 @@ def to_domain(model: UserModel) -> User:
         name=getattr(model, "name", ""),
         phone=getattr(model, "phone", ""),
         email=getattr(model, "email", "") or "",
+        password_hash=getattr(model, "password_hash", "") or "",
         timezone=getattr(model, "timezone", "America/Lima") or "America/Lima",
         currency=getattr(model, "currency", "PEN") or "PEN",
         created_at=getattr(model, "created_at", None),
@@ -27,6 +28,7 @@ def to_model(domain: User) -> UserModel:
         name=domain.name,
         phone=domain.phone,
         email=domain.email or "",
+        password_hash=domain.password_hash or "",
         timezone=domain.timezone,
         currency=domain.currency,
         created_at=domain.created_at,
@@ -38,6 +40,7 @@ def update_model(model: UserModel, domain: User) -> None:
     model.name = domain.name
     model.phone = domain.phone
     model.email = domain.email or ""
+    model.password_hash = domain.password_hash or ""
     model.timezone = domain.timezone
     model.currency = domain.currency
     model.updated_at = domain.updated_at

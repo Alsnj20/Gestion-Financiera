@@ -6,6 +6,8 @@ from datetime import datetime
 
 from modules.transactions.domain.entities.transaction import Transaction
 from modules.transactions.application.ports.transaction_repository import TransactionRepositoryPort
+from modules.accounts.application.ports.account_repository import AccountRepositoryPort
+from shared.errors import ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,11 +44,20 @@ class CreateTransactionOutput:
 class CreateTransactionUseCase:
     """Orquesta la lógica del caso de uso. Sin dependencias de frameworks."""
 
-    def __init__(self, tx_repo: TransactionRepositoryPort) -> None:
+    def __init__(self, tx_repo: TransactionRepositoryPort, account_repo: AccountRepositoryPort) -> None:
         self._tx_repo = tx_repo
+        self._account_repo = account_repo
 
     async def execute(self, inp: CreateTransactionInput) -> CreateTransactionOutput:
-        # 1. Creación del Agregado de Dominio (Valida reglas puras)
+        # 1. Obtener y validar cuenta
+        account = await self._account_repo.find_by_id(inp.account_id)
+        if not account:
+            raise ValidationError(code="ACCOUNT_NOT_FOUND", message="Cuenta no encontrada")
+
+        if account.user_id != inp.user_id:
+            raise ValidationError(code="ACCOUNT_USER_MISMATCH", message="La cuenta no pertenece al usuario")
+
+        # 2. Crear transacción
         if inp.type.upper() == "INCOME":
             tx = Transaction.create_income(
                 user_id=inp.user_id,
@@ -59,6 +70,8 @@ class CreateTransactionUseCase:
                 source=inp.source,
                 transaction_date=inp.transaction_date,
             )
+            # 3. Actualizar balance de cuenta
+            updated_account = account.apply_income(inp.amount)
         else:
             tx = Transaction.create_expense(
                 user_id=inp.user_id,
@@ -71,11 +84,14 @@ class CreateTransactionUseCase:
                 source=inp.source,
                 transaction_date=inp.transaction_date,
             )
+            # 3. Actualizar balance de cuenta
+            updated_account = account.apply_expense(inp.amount)
 
-        # 2. Persistencia mediante el puerto
+        # 4. Persistir cambios
         await self._tx_repo.save(tx)
+        await self._account_repo.save(updated_account)
 
-        # 3. Retorno del DTO de salida
+        # 5. Retorno del DTO de salida
         return CreateTransactionOutput(
             id=tx.id,
             user_id=tx.user_id,

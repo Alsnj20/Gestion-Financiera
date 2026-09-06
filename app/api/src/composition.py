@@ -66,7 +66,10 @@ def build_account_repository(session: AsyncSession) -> SqlAlchemyAccountReposito
 
 # ---- Transactions ----
 def build_create_transaction_use_case(session: AsyncSession) -> CreateTransactionUseCase:
-    return CreateTransactionUseCase(SqlAlchemyTransactionRepository(session))
+    return CreateTransactionUseCase(
+        SqlAlchemyTransactionRepository(session),
+        SqlAlchemyAccountRepository(session),
+    )
 
 def build_transaction_repository(session: AsyncSession) -> SqlAlchemyTransactionRepository:
     return SqlAlchemyTransactionRepository(session)

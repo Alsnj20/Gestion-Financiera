@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import bcrypt
 from modules.users.domain.entities.user import User
 from modules.users.domain.ports.user_repository import UserRepositoryPort
-from shared.errors import ConflictError
+from shared.errors import ConflictError, ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,6 +13,7 @@ class CreateUserInput:
     name: str
     phone: str
     email: str = ""
+    password: str = ""
     timezone: str = "America/Lima"
     currency: str = "PEN"
 
@@ -43,19 +45,26 @@ class CreateUserUseCase:
             if existing_email:
                 raise ConflictError(code="USER_EMAIL_TAKEN", message=f"Email ya vinculado: {email}")
 
-        # 2. Creación del Agregado de Dominio (Valida reglas puras)
+        if not inp.password or len(inp.password) < 6:
+            raise ValidationError(code="USER_PASSWORD_TOO_SHORT", message="La contraseña debe tener al menos 6 caracteres")
+
+        # 2. Hash del password
+        password_hash = bcrypt.hashpw(inp.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+        # 3. Creación del Agregado de Dominio (Valida reglas puras)
         user = User.create(
             name=inp.name,
             phone=inp.phone,
             email=email,
+            password_hash=password_hash,
             timezone=inp.timezone,
             currency=inp.currency,
         )
 
-        # 3. Persistencia mediante el puerto
+        # 4. Persistencia mediante el puerto
         await self._user_repo.save(user)
 
-        # 4. Retorno del DTO de salida
+        # 5. Retorno del DTO de salida
         return CreateUserOutput(
             id=user.id,
             name=user.name,
