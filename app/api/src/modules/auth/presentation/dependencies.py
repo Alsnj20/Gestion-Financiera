@@ -1,5 +1,7 @@
-"""JWT Authentication middleware for FastAPI."""
+"""JWT Authentication middleware for FastAPI — Reusable auth dependencies."""
 from __future__ import annotations
+
+from typing import Protocol
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -8,6 +10,8 @@ from modules.auth.infrastructure.jwt_utils import decode_token
 
 security = HTTPBearer()
 
+
+# ==================== CORE AUTH ====================
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -72,3 +76,43 @@ async def require_verified(
             detail={"code": "NOT_VERIFIED", "message": "Cuenta no verificada"},
         )
     return current_user
+
+
+# ==================== REUSABLE OWNERSHIP CHECK ====================
+
+class OwnedEntity(Protocol):
+    """Protocol for entities that have a user_id field."""
+    @property
+    def user_id(self) -> str: ...
+
+
+def check_ownership(entity: OwnedEntity, current_user: dict) -> None:
+    """
+    Validate that the current user owns the entity.
+    Raises 403 if not the owner and not admin.
+    
+    Usage in routers:
+        check_ownership(account, current_user)
+    """
+    if entity.user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "No autorizado"},
+        )
+
+
+def get_user_id_or_admin(target_user_id: str, current_user: dict) -> str:
+    """
+    For endpoints that take user_id as parameter.
+    Returns the user_id if the current user is the owner or admin.
+    Raises 403 otherwise.
+    
+    Usage in routers:
+        uid = get_user_id_or_admin(user_id, current_user)
+    """
+    if target_user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "No autorizado"},
+        )
+    return current_user["user_id"]

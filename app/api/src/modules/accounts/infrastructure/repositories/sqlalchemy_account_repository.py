@@ -64,6 +64,15 @@ class SqlAlchemyAccountRepository:
         result = await self._session.execute(stmt)
         return result.scalars().first() is not None
 
+    async def delete(self, entity_id: str) -> None:
+        import uuid
+        if not _is_uuid(entity_id):
+            return
+        model = await self._session.get(AccountModel, uuid.UUID(entity_id))
+        if model:
+            await self._session.delete(model)
+            await self._session.flush()
+
 
 def _is_uuid(v: str) -> bool:
     try:

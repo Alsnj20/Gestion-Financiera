@@ -40,6 +40,15 @@ class SqlAlchemyAuditLogRepository(AuditLogRepositoryPort):
         result = await self._session.execute(stmt)
         return [to_domain(m) for m in result.scalars().all()]
 
+    async def delete(self, entity_id: str) -> None:
+        import uuid
+        if not _is_uuid(entity_id):
+            return
+        model = await self._session.get(AuditLogModel, uuid.UUID(entity_id))
+        if model:
+            await self._session.delete(model)
+            await self._session.flush()
+
 
 def _is_uuid(value: str) -> bool:
     try:

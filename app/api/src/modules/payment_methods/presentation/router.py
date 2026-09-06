@@ -4,18 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from composition import build_create_payment_method_use_case, build_payment_method_repository
+from modules.auth.presentation.dependencies import get_current_user, check_ownership
 from infrastructure.database.session import get_session
-from modules.payment_methods.presentation.schemas import CreatePaymentMethodRequestSchema, PaymentMethodResponseSchema
+from modules.payment_methods.presentation.schemas import CreatePaymentMethodRequestSchema, UpdatePaymentMethodRequestSchema, PaymentMethodResponseSchema
 from shared.errors import ConflictError, ValidationError
 
 router = APIRouter(prefix="/payment-methods", tags=["payment-methods"])
 
 
 @router.post("", response_model=PaymentMethodResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_payment_method(payload: CreatePaymentMethodRequestSchema, session: AsyncSession = Depends(get_session)):
+async def create_payment_method(payload: CreatePaymentMethodRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     use_case = build_create_payment_method_use_case(session)
     try:
         input_dto = payload.to_input_dto()
+        input_dto.user_id = current_user["user_id"]
         result = await use_case.execute(input_dto)
         await session.commit()
         return PaymentMethodResponseSchema(id=result.id, user_id=result.user_id, account_id=result.account_id, name=result.name, type=result.type, is_default=result.is_default, status=result.status)
@@ -28,7 +30,57 @@ async def create_payment_method(payload: CreatePaymentMethodRequestSchema, sessi
 
 
 @router.get("/user/{user_id}", response_model=list[PaymentMethodResponseSchema])
-async def list_payment_methods_by_user(user_id: str, session: AsyncSession = Depends(get_session)):
+async def list_payment_methods_by_user(user_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
     repo = build_payment_method_repository(session)
     pms = await repo.find_by_user(user_id)
     return [PaymentMethodResponseSchema(id=pm.id, user_id=pm.user_id, account_id=pm.account_id, name=pm.name, type=pm.type, is_default=pm.is_default, status=pm.status.value if hasattr(pm.status, "value") else str(pm.status)) for pm in pms]
+
+
+@router.get("/{pm_id}", response_model=PaymentMethodResponseSchema)
+async def get_payment_method(pm_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    repo = build_payment_method_repository(session)
+    pm = await repo.find_by_id(pm_id)
+    if not pm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medio de pago no encontrado")
+    check_ownership(pm, current_user)
+    return PaymentMethodResponseSchema(
+        id=pm.id, user_id=pm.user_id, account_id=pm.account_id, name=pm.name,
+        type=pm.type, is_default=pm.is_default,
+        status=pm.status.value if hasattr(pm.status, "value") else str(pm.status),
+    )
+
+
+@router.put("/{pm_id}", response_model=PaymentMethodResponseSchema)
+async def update_payment_method(pm_id: str, payload: UpdatePaymentMethodRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    repo = build_payment_method_repository(session)
+    pm = await repo.find_by_id(pm_id)
+    if not pm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medio de pago no encontrado")
+    check_ownership(pm, current_user)
+
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(pm, field, value)
+
+    await repo.save(pm)
+    await session.commit()
+
+    return PaymentMethodResponseSchema(
+        id=pm.id, user_id=pm.user_id, account_id=pm.account_id, name=pm.name,
+        type=pm.type, is_default=pm.is_default,
+        status=pm.status.value if hasattr(pm.status, "value") else str(pm.status),
+    )
+
+
+@router.delete("/{pm_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_payment_method(pm_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
+    repo = build_payment_method_repository(session)
+    pm = await repo.find_by_id(pm_id)
+    if not pm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medio de pago no encontrado")
+    check_ownership(pm, current_user)
+
+    await repo.delete(pm_id)
+    await session.commit()

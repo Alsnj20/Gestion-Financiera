@@ -17,6 +17,7 @@ from modules.reports.presentation.schemas import (
     ByAccountResponseSchema,
     AccountBreakdownSchema,
 )
+from modules.auth.presentation.dependencies import get_current_user
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -34,12 +35,13 @@ def _get_month_range(reference_date: date | None = None) -> tuple[date, date]:
 
 @router.get("/summary", response_model=SummaryResponseSchema)
 async def get_summary(
-    user_id: str,
     month: int | None = Query(None, ge=1, le=12),
     year: int | None = Query(None, ge=2020, le=2100),
     session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """Get income vs expenses summary for a period."""
+    user_id = current_user["user_id"]
     today = date.today()
     ref_date = date(year or today.year, month or today.month, 1)
     period_start, period_end = _get_month_range(ref_date)
@@ -89,13 +91,14 @@ async def get_summary(
 
 @router.get("/by-category", response_model=ByCategoryResponseSchema)
 async def get_by_category(
-    user_id: str,
     type: str = Query("EXPENSE", regex="^(INCOME|EXPENSE)$"),
     month: int | None = Query(None, ge=1, le=12),
     year: int | None = Query(None, ge=2020, le=2100),
     session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """Get transactions grouped by category."""
+    user_id = current_user["user_id"]
     today = date.today()
     ref_date = date(year or today.year, month or today.month, 1)
     period_start, period_end = _get_month_range(ref_date)
@@ -157,12 +160,13 @@ async def get_by_category(
 
 @router.get("/by-account", response_model=ByAccountResponseSchema)
 async def get_by_account(
-    user_id: str,
     month: int | None = Query(None, ge=1, le=12),
     year: int | None = Query(None, ge=2020, le=2100),
     session: AsyncSession = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
 ):
     """Get transactions grouped by account."""
+    user_id = current_user["user_id"]
     today = date.today()
     ref_date = date(year or today.year, month or today.month, 1)
     period_start, period_end = _get_month_range(ref_date)

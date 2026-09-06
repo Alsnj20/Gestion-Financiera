@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
 from datetime import date
+from typing import Optional
 from modules.recurring_expenses.application.use_cases.create_recurring_expense import CreateRecurringExpenseInput
 
 
 class CreateRecurringExpenseRequestSchema(BaseModel):
-    user_id: str = Field(..., min_length=1)
     account_id: str = Field(..., min_length=1)
     amount: float = Field(..., gt=0)
     frequency: str = Field(default="MONTHLY", max_length=20)
@@ -14,7 +16,7 @@ class CreateRecurringExpenseRequestSchema(BaseModel):
 
     def to_input_dto(self) -> CreateRecurringExpenseInput:
         return CreateRecurringExpenseInput(
-            user_id=self.user_id,
+            user_id="",
             account_id=self.account_id,
             amount=self.amount,
             frequency=self.frequency,
@@ -22,6 +24,14 @@ class CreateRecurringExpenseRequestSchema(BaseModel):
             description=self.description,
             category_id=self.category_id,
         )
+
+
+class UpdateRecurringExpenseRequestSchema(BaseModel):
+    amount: Optional[float] = Field(default=None, gt=0)
+    frequency: Optional[str] = Field(default=None, max_length=20)
+    next_date: Optional[date] = Field(default=None)
+    description: Optional[str] = Field(default=None, max_length=500)
+    status: Optional[str] = Field(default=None, max_length=20)
 
 
 class RecurringExpenseResponseSchema(BaseModel):

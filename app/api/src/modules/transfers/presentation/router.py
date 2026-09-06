@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from composition import build_create_transfer_use_case
+from modules.auth.presentation.dependencies import get_current_user, check_ownership
 from infrastructure.database.session import get_session
 from modules.transfers.presentation.schemas import CreateTransferRequestSchema, TransferResponseSchema
 from shared.errors import BusinessRuleError, ConflictError, ValidationError
@@ -12,10 +13,11 @@ router = APIRouter(prefix="/transfers", tags=["transfers"])
 
 
 @router.post("", response_model=TransferResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_transfer(payload: CreateTransferRequestSchema, session: AsyncSession = Depends(get_session)):
+async def create_transfer(payload: CreateTransferRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
     use_case = build_create_transfer_use_case(session)
     try:
         input_dto = payload.to_input_dto()
+        input_dto.user_id = current_user["user_id"]
         result = await use_case.execute(input_dto)
         await session.commit()
         return TransferResponseSchema(id=result.id, user_id=result.user_id, source_account_id=result.source_account_id, destination_account_id=result.destination_account_id, amount=result.amount, currency=result.currency)

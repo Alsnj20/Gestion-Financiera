@@ -5,7 +5,6 @@ from modules.transfers.application.use_cases.create_transfer import CreateTransf
 
 
 class CreateTransferRequestSchema(BaseModel):
-    user_id: str = Field(..., min_length=1)
     source_account_id: str = Field(..., min_length=1)
     destination_account_id: str = Field(..., min_length=1)
     amount: Decimal = Field(..., gt=0)
@@ -14,7 +13,7 @@ class CreateTransferRequestSchema(BaseModel):
     date: datetime | None = None
 
     def to_input_dto(self) -> CreateTransferInput:
-        return CreateTransferInput(user_id=self.user_id, source_account_id=self.source_account_id, destination_account_id=self.destination_account_id, amount=self.amount, currency=self.currency, description=self.description, date=self.date)
+        return CreateTransferInput(user_id="", source_account_id=self.source_account_id, destination_account_id=self.destination_account_id, amount=self.amount, currency=self.currency, description=self.description, date=self.date)
 
 
 class TransferResponseSchema(BaseModel):

@@ -3,7 +3,6 @@ from modules.conversations.application.use_cases.create_conversation_message imp
 
 
 class CreateConversationMessageRequestSchema(BaseModel):
-    user_id: str = Field(..., min_length=1)
     channel: str = Field(default="DASHBOARD", max_length=20)
     external_message_id: str = Field(..., min_length=1, max_length=120)
     direction: str = Field(default="INBOUND", max_length=20)
@@ -14,7 +13,7 @@ class CreateConversationMessageRequestSchema(BaseModel):
 
     def to_input_dto(self) -> CreateConversationMessageInput:
         return CreateConversationMessageInput(
-            user_id=self.user_id,
+            user_id="",
             channel=self.channel,
             external_message_id=self.external_message_id,
             direction=self.direction,
