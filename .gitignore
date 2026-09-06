@@ -1,0 +1,19 @@
+__init__.py
+docs/
+
+# app/api/src/modules/users/
+# app/api/src/modules/accounts/
+# app/api/src/modules/transactions/
+# app/api/src/modules/categories/
+# app/api/src/modules/budgets/
+# app/api/src/modules/reports/
+# app/api/src/config/
+# app/api/src/utils/
+# app/api/src/modules/
+# app/api/src/infrastructure/
+# app/api/src/shared/
+app/api/alembic/
+app/api/tests/
+# app/api/src/
+app/dash
+.opencode/

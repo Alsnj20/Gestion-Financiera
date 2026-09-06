@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.users.application.use_cases.create_user import CreateUserUseCase
 from modules.users.infrastructure.adapters.sqlalchemy_user_repository import SqlAlchemyUserRepository
 
 from modules.accounts.application.use_cases.create_account import CreateAccountUseCase
@@ -49,9 +48,6 @@ from modules.conversations.infrastructure.adapters.sqlalchemy_conversation_messa
 
 
 # ---- Users ----
-def build_create_user_use_case(session: AsyncSession) -> CreateUserUseCase:
-    return CreateUserUseCase(SqlAlchemyUserRepository(session))
-
 def build_user_repository(session: AsyncSession) -> SqlAlchemyUserRepository:
     return SqlAlchemyUserRepository(session)
 

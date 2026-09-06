@@ -7,24 +7,23 @@ from datetime import datetime, timezone
 
 from shared.errors import ValidationError
 
-# Value objects for validation
 _PHONE_RE = re.compile(r"^\+?[0-9]{7,15}$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
-# slot = save memory, faster attribute access, but no dynamic attributes allowed
-# frozen = immutable, but we want to allow updates via methods that return new instances
+
 @dataclass(frozen=True, slots=True)
 class User:
-    """Agregado User — Entidad de dominio pura e inmutable."""
-
     id: str
     name: str
     phone: str
     email: str = ""
-    password_hash: str = ""
+    role: str = "USER"
+    is_verified: bool = False
+    google_id: str = ""
     timezone: str = "America/Lima"
     currency: str = "PEN"
     created_at: datetime = field(default_factory=_utcnow)
@@ -39,6 +38,8 @@ class User:
             raise ValidationError(code="USER_PHONE_INVALID", message=f"Teléfono inválido: {self.phone}")
         if self.email and not _EMAIL_RE.match(self.email):
             raise ValidationError(code="USER_EMAIL_INVALID", message=f"Email inválido: {self.email}")
+        if self.role not in ("USER", "ADMIN"):
+            self.role = "USER"
 
     @classmethod
     def create(
@@ -47,7 +48,9 @@ class User:
         name: str,
         phone: str,
         email: str = "",
-        password_hash: str = "",
+        role: str = "USER",
+        is_verified: bool = False,
+        google_id: str = "",
         timezone: str = "America/Lima",
         currency: str = "PEN",
     ) -> User:
@@ -57,7 +60,9 @@ class User:
             name=name.strip(),
             phone=phone.strip(),
             email=email.strip().lower(),
-            password_hash=password_hash,
+            role=role,
+            is_verified=is_verified,
+            google_id=google_id,
             timezone=timezone.strip(),
             currency=currency.strip().upper(),
             created_at=now,
@@ -72,7 +77,9 @@ class User:
         name: str,
         phone: str,
         email: str = "",
-        password_hash: str = "",
+        role: str = "USER",
+        is_verified: bool = False,
+        google_id: str = "",
         timezone: str = "America/Lima",
         currency: str = "PEN",
         created_at: datetime,
@@ -83,7 +90,9 @@ class User:
             name=name,
             phone=phone,
             email=email,
-            password_hash=password_hash,
+            role=role,
+            is_verified=is_verified,
+            google_id=google_id,
             timezone=timezone,
             currency=currency,
             created_at=created_at,
@@ -103,9 +112,19 @@ class User:
             name=name.strip() if name is not None else self.name,
             phone=self.phone,
             email=email.strip().lower() if email is not None else self.email,
-            password_hash=self.password_hash,
+            role=self.role,
+            is_verified=self.is_verified,
+            google_id=self.google_id,
             timezone=timezone.strip() if timezone is not None else self.timezone,
             currency=currency.strip().upper() if currency is not None else self.currency,
             created_at=self.created_at,
             updated_at=_utcnow(),
+        )
+
+    def verify(self) -> User:
+        return User(
+            id=self.id, name=self.name, phone=self.phone, email=self.email,
+            role=self.role, is_verified=True, google_id=self.google_id,
+            timezone=self.timezone, currency=self.currency,
+            created_at=self.created_at, updated_at=_utcnow(),
         )

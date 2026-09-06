@@ -44,7 +44,6 @@ class UserModel(Base):
     name: Mapped[str] = mapped_column(STR_120, nullable=False)
     phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="USER", server_default="USER")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     google_id: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")

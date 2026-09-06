@@ -12,7 +12,6 @@ def to_domain(model: UserModel) -> User:
         name=getattr(model, "name", ""),
         phone=getattr(model, "phone", ""),
         email=getattr(model, "email", "") or "",
-        password_hash=getattr(model, "password_hash", "") or "",
         role=getattr(model, "role", "USER"),
         is_verified=getattr(model, "is_verified", False),
         google_id=getattr(model, "google_id", "") or "",
@@ -29,7 +28,6 @@ def to_model(domain: User) -> UserModel:
         name=domain.name,
         phone=domain.phone,
         email=domain.email or "",
-        password_hash=domain.password_hash or "",
         role=domain.role,
         is_verified=domain.is_verified,
         google_id=domain.google_id or "",
@@ -44,7 +42,6 @@ def update_model(model: UserModel, domain: User) -> None:
     model.name = domain.name
     model.phone = domain.phone
     model.email = domain.email or ""
-    model.password_hash = domain.password_hash or ""
     model.role = domain.role
     model.is_verified = domain.is_verified
     model.google_id = domain.google_id or ""
