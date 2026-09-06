@@ -45,6 +45,9 @@ class UserModel(Base):
     phone: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="USER", server_default="USER")
+    is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    google_id: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="America/Lima", server_default="America/Lima")
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="PEN", server_default="PEN")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
@@ -389,4 +392,39 @@ class AuditLogModel(Base):
     old_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
     new_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="MANUAL", server_default="MANUAL")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
+# ---------- VerificationCode (OTP) ----------
+class VerificationCodeModel(Base):
+    __tablename__ = "verification_codes"
+    __table_args__ = (
+        Index("ix_verification_user_channel", "user_id", "channel"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(10), nullable=False)
+    channel: Mapped[str] = mapped_column(String(20), nullable=False)  # WHATSAPP, EMAIL
+    purpose: Mapped[str] = mapped_column(String(30), nullable=False, default="VERIFY", server_default="VERIFY")  # VERIFY, LOGIN, RESET
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    attempts: Mapped[int] = mapped_column(Numeric(3, 0), nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
+# ---------- WhatsApp Link Token ----------
+class WhatsAppLinkTokenModel(Base):
+    __tablename__ = "whatsapp_link_tokens"
+    __table_args__ = (
+        Index("ix_wa_link_token", "token", unique=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token: Mapped[str] = mapped_column(String(64), nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, default=None)
+    linked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)

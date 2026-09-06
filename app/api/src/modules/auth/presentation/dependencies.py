@@ -32,6 +32,8 @@ async def get_current_user(
 
     user_id = payload.get("sub")
     email = payload.get("email")
+    role = payload.get("role", "USER")
+    is_verified = payload.get("is_verified", False)
 
     if not user_id:
         raise HTTPException(
@@ -40,4 +42,33 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return {"user_id": user_id, "email": email or ""}
+    return {
+        "user_id": user_id,
+        "email": email or "",
+        "role": role,
+        "is_verified": is_verified,
+    }
+
+
+async def require_admin(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Require admin role."""
+    if current_user.get("role") != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "Se requiere rol de administrador"},
+        )
+    return current_user
+
+
+async def require_verified(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Require verified account."""
+    if not current_user.get("is_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "NOT_VERIFIED", "message": "Cuenta no verificada"},
+        )
+    return current_user
