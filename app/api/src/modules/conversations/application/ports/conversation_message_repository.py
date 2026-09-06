@@ -1,0 +1,10 @@
+from __future__ import annotations
+
+from typing import Protocol
+from modules.conversations.domain.entities.conversation_message import ConversationMessage
+
+
+class ConversationMessageRepositoryPort(Protocol):
+    async def save(self, message: ConversationMessage) -> None: ...
+    async def find_by_id(self, message_id: str) -> ConversationMessage | None: ...
+    async def find_by_user(self, user_id: str) -> list[ConversationMessage]: ...

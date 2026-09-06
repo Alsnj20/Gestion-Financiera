@@ -1,0 +1,10 @@
+from __future__ import annotations
+
+from typing import Protocol
+from modules.budgets.domain.entities.budget import Budget
+
+
+class BudgetRepositoryPort(Protocol):
+    async def save(self, budget: Budget) -> None: ...
+    async def find_by_id(self, budget_id: str) -> Budget | None: ...
+    async def find_by_user(self, user_id: str) -> list[Budget]: ...

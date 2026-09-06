@@ -1,0 +1,10 @@
+from __future__ import annotations
+
+from typing import Protocol
+from modules.loans.domain.entities.loan import Loan
+
+
+class LoanRepositoryPort(Protocol):
+    async def save(self, loan: Loan) -> None: ...
+    async def find_by_id(self, loan_id: str) -> Loan | None: ...
+    async def find_by_user(self, user_id: str) -> list[Loan]: ...

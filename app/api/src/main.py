@@ -3,6 +3,19 @@ from fastapi.responses import JSONResponse
 
 from modules.users.presentation.router import router as users_router
 from modules.accounts.presentation.router import router as accounts_router
+from modules.transactions.presentation.router import router as transactions_router
+from modules.categories.presentation.router import router as categories_router
+from modules.tags.presentation.router import router as tags_router
+from modules.payment_methods.presentation.router import router as payment_methods_router
+from modules.budgets.presentation.router import router as budgets_router
+from modules.limits.presentation.router import router as limits_router
+from modules.notifications.presentation.router import router as notifications_router
+from modules.transfers.presentation.router import router as transfers_router
+from modules.loans.presentation.router import router as loans_router
+from modules.debts.presentation.router import router as debts_router
+from modules.recurring_expenses.presentation.router import router as recurring_expenses_router
+from modules.audit_logs.presentation.router import router as audit_logs_router
+from modules.conversations.presentation.router import router as conversations_router
 from shared.errors import ConflictError, ValidationError
 
 app = FastAPI(
@@ -12,6 +25,19 @@ app = FastAPI(
 
 app.include_router(users_router)
 app.include_router(accounts_router)
+app.include_router(transactions_router)
+app.include_router(categories_router)
+app.include_router(tags_router)
+app.include_router(payment_methods_router)
+app.include_router(budgets_router)
+app.include_router(limits_router)
+app.include_router(notifications_router)
+app.include_router(transfers_router)
+app.include_router(loans_router)
+app.include_router(debts_router)
+app.include_router(recurring_expenses_router)
+app.include_router(audit_logs_router)
+app.include_router(conversations_router)
 
 
 @app.exception_handler(ValidationError)
