@@ -1,23 +1,24 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
 from decimal import Decimal
-from typing import Optional
-from modules.accounts.application.use_cases.create_account import CreateAccountInput
+
+from pydantic import BaseModel, Field
+
+from modules.accounts.application.use_cases.create_account import (
+    CreateAccountInput,
+)
 
 
 class CreateAccountRequestSchema(BaseModel):
-    """Schema Pydantic para deserializar y validar el Request HTTP."""
-    name: str = Field(..., min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=80)
     type: str = Field(default="OTHER", max_length=20)
     currency: str = Field(default="PEN", max_length=10)
     initial_balance: Decimal = Field(default=Decimal("0.00"), ge=0)
     is_default: bool = Field(default=False)
 
-    def to_input_dto(self) -> CreateAccountInput:
-        """Traducción explícita del Schema HTTP al DTO de la Capa de Aplicación."""
+    def to_input_dto(self, user_id: str) -> CreateAccountInput:
         return CreateAccountInput(
-            user_id="",
+            user_id=user_id,
             name=self.name,
             type=self.type,
             currency=self.currency,
@@ -27,14 +28,12 @@ class CreateAccountRequestSchema(BaseModel):
 
 
 class UpdateAccountRequestSchema(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=80)
-    type: Optional[str] = Field(default=None, max_length=20)
-    currency: Optional[str] = Field(default=None, max_length=10)
-    is_default: Optional[bool] = Field(default=None)
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    type: str | None = Field(default=None, max_length=20)
+    is_default: bool | None = None
 
 
 class AccountResponseSchema(BaseModel):
-    """Presenter DTO para estandarizar la salida JSON."""
     id: str
     user_id: str
     name: str

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import AuditLogModel
 from modules.audit_logs.domain.entities.audit_log import AuditLog
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: AuditLogModel) -> AuditLog:
@@ -31,11 +33,3 @@ def to_model(domain: AuditLog) -> AuditLogModel:
         source=domain.source,
         created_at=domain.created_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

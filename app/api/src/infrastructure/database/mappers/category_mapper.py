@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import CategoryModel
 from modules.categories.domain.entities.category import Category
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: CategoryModel) -> Category:
@@ -24,16 +26,12 @@ def to_model(domain: Category) -> CategoryModel:
         user_id=uuid.UUID(domain.user_id) if _is_uuid(domain.user_id) else uuid.uuid4(),
         name=domain.name,
         type=domain.type.value if hasattr(domain.type, "value") else str(domain.type),
-        parent_id=uuid.UUID(domain.parent_id) if domain.parent_id and _is_uuid(domain.parent_id) else None,
-        status=domain.status.value if hasattr(domain.status, "value") else str(domain.status),
+        parent_id=uuid.UUID(domain.parent_id)
+        if domain.parent_id and _is_uuid(domain.parent_id)
+        else None,
+        status=domain.status.value
+        if hasattr(domain.status, "value")
+        else str(domain.status),
         created_at=domain.created_at,
         updated_at=domain.updated_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

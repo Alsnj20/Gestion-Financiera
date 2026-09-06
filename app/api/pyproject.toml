@@ -13,8 +13,10 @@ dependencies = [
     "pyjwt>=2.9.0",
     "psycopg>=3.3.4",
     "pydantic-settings>=2.15.0",
+    "requests>=2.32.0",
     "sqlalchemy>=2.0.52",
     "uvicorn>=0.52.4",
+    "ruff>=0.16.6",
 ]
 
 [dependency-groups]

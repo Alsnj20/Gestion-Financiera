@@ -1,4 +1,5 @@
 from __future__ import annotations
+from shared.utils.uuids import is_uuid as _is_uuid
 
 import uuid
 from sqlalchemy import select
@@ -60,6 +61,11 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
         result = await self._session.execute(stmt)
         return result.scalars().first() is not None
 
+    async def list_all(self, limit: int = 100) -> list[User]:
+        stmt = select(UserModel).order_by(UserModel.created_at.desc()).limit(limit)
+        result = await self._session.execute(stmt)
+        return [to_domain(m) for m in result.scalars().all()]
+
     async def delete(self, entity_id: str) -> None:
         import uuid
         if not _is_uuid(entity_id):
@@ -69,10 +75,3 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
             await self._session.delete(model)
             await self._session.flush()
 
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

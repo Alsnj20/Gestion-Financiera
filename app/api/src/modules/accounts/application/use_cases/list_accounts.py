@@ -1,44 +1,40 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
 
+from modules.accounts.application.dtos import (
+    ListAccountsByUserOutput,
+    to_account_output,
+)
 from modules.accounts.application.ports.account_repository import AccountRepositoryPort
+from shared.errors import BusinessRuleError
+from shared.types.enums import AccountStatus
 
 
 @dataclass(frozen=True, slots=True)
-class AccountOutput:
-    """DTO de salida para una cuenta."""
-    id: str
+class ListAccountsByUserInput:
     user_id: str
-    name: str
-    type: str
-    currency: str
-    initial_balance: Decimal
-    current_balance: Decimal
-    is_default: bool
-    status: str
+    requester_id: str
+    requester_role: str = "USER"
+    include_archived: bool = False
 
 
-class ListAccountsUseCase:
-    """Orquesta la lógica para listar cuentas de un usuario."""
-
+class ListAccountsByUserUseCase:
     def __init__(self, account_repo: AccountRepositoryPort) -> None:
         self._account_repo = account_repo
 
-    async def execute(self, user_id: str) -> list[AccountOutput]:
-        accounts = await self._account_repo.find_by_user(user_id)
-        return [
-            AccountOutput(
-                id=account.id,
-                user_id=account.user_id,
-                name=account.name,
-                type=account.type.value if hasattr(account.type, "value") else str(account.type),
-                currency=account.currency,
-                initial_balance=account.initial_balance,
-                current_balance=account.current_balance,
-                is_default=account.is_default,
-                status=account.status.value if hasattr(account.status, "value") else str(account.status),
+    async def execute(
+        self, inp: ListAccountsByUserInput
+    ) -> list[ListAccountsByUserOutput]:
+        # Lectura: dueño o admin. El ownership se valida aquí,
+        # no solo en el guard del router.
+        if inp.user_id != inp.requester_id and inp.requester_role != "ADMIN":
+            raise BusinessRuleError(
+                code="FORBIDDEN",
+                message="No autorizado",
             )
-            for account in accounts
-        ]
+
+        accounts = await self._account_repo.find_by_user(inp.user_id)
+        if not inp.include_archived:
+            accounts = [a for a in accounts if a.status == AccountStatus.ACTIVE]
+        return [to_account_output(a) for a in accounts]

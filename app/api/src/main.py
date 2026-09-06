@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from modules.users.presentation.router import router as users_router
 from modules.accounts.presentation.router import router as accounts_router
+from modules.accounts.presentation.router import user_accounts_router as user_accounts_router
 from modules.transactions.presentation.router import router as transactions_router
 from modules.categories.presentation.router import router as categories_router
 from modules.tags.presentation.router import router as tags_router
@@ -41,6 +42,7 @@ app.include_router(auth_router)
 # Protected routes
 app.include_router(users_router)
 app.include_router(accounts_router)
+app.include_router(user_accounts_router)
 app.include_router(transactions_router)
 app.include_router(categories_router)
 app.include_router(tags_router)

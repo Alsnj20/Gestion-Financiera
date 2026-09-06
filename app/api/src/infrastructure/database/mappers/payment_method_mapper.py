@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import PaymentMethodModel
 from modules.payment_methods.domain.entities.payment_method import PaymentMethod
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: PaymentMethodModel) -> PaymentMethod:
@@ -23,19 +25,15 @@ def to_model(domain: PaymentMethod) -> PaymentMethodModel:
     return PaymentMethodModel(
         id=uuid.UUID(domain.id) if _is_uuid(domain.id) else uuid.uuid4(),
         user_id=uuid.UUID(domain.user_id) if _is_uuid(domain.user_id) else uuid.uuid4(),
-        account_id=uuid.UUID(domain.account_id) if _is_uuid(domain.account_id) else uuid.uuid4(),
+        account_id=uuid.UUID(domain.account_id)
+        if _is_uuid(domain.account_id)
+        else uuid.uuid4(),
         name=domain.name,
         type=domain.type,
         is_default=domain.is_default,
-        status=domain.status.value if hasattr(domain.status, "value") else str(domain.status),
+        status=domain.status.value
+        if hasattr(domain.status, "value")
+        else str(domain.status),
         created_at=domain.created_at,
         updated_at=domain.updated_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

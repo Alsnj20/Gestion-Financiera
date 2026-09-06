@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import BudgetModel
 from modules.budgets.domain.entities.budget import Budget
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: BudgetModel) -> Budget:
@@ -27,15 +29,11 @@ def to_model(domain: Budget) -> BudgetModel:
         amount=domain.amount,
         period_start=domain.period_start,
         period_end=domain.period_end,
-        category_id=uuid.UUID(domain.category_id) if domain.category_id and _is_uuid(domain.category_id) else None,
-        status=domain.status.value if hasattr(domain.status, "value") else str(domain.status),
+        category_id=uuid.UUID(domain.category_id)
+        if domain.category_id and _is_uuid(domain.category_id)
+        else None,
+        status=domain.status.value
+        if hasattr(domain.status, "value")
+        else str(domain.status),
         created_at=domain.created_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

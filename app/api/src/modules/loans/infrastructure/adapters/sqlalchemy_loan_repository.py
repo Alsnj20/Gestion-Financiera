@@ -1,4 +1,5 @@
 from __future__ import annotations
+from shared.utils.uuids import is_uuid as _is_uuid
 
 import uuid
 from sqlalchemy import select
@@ -62,10 +63,3 @@ class SqlAlchemyLoanRepository(LoanRepositoryPort):
             await self._session.delete(model)
             await self._session.flush()
 
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

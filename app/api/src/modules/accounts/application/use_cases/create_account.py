@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from modules.accounts.domain.entities.account import Account
+from modules.accounts.application.dtos import AccountOutput, CreateAccountOutput
 from modules.accounts.application.ports.account_repository import AccountRepositoryPort
+from modules.accounts.domain.entities.account import Account
 from shared.errors import ConflictError
 
 
 @dataclass(frozen=True, slots=True)
 class CreateAccountInput:
-    """DTO puro de Python sin acoplamiento a Pydantic ni HTTP."""
     user_id: str
     name: str
     type: str = "OTHER"
@@ -19,34 +19,23 @@ class CreateAccountInput:
     is_default: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class CreateAccountOutput:
-    id: str
-    user_id: str
-    name: str
-    type: str
-    currency: str
-    initial_balance: Decimal
-    current_balance: Decimal
-    is_default: bool
-    status: str
-
-
 class CreateAccountUseCase:
-    """Orquesta la lógica del caso de uso. Sin dependencias de frameworks."""
-
     def __init__(self, account_repo: AccountRepositoryPort) -> None:
         self._account_repo = account_repo
 
     async def execute(self, inp: CreateAccountInput) -> CreateAccountOutput:
-        # 1. Validación de reglas de aplicación
+        # Validar nombre único
         if await self._account_repo.exists_name_for_user(inp.user_id, inp.name):
             raise ConflictError(
                 code="ACCOUNT_NAME_TAKEN",
-                message=f"Cuenta ya existe para el usuario: {inp.name}"
+                message=f"Cuenta ya existe para el usuario: {inp.name}",
             )
 
-        # 2. Creación del Agregado de Dominio (Valida reglas puras)
+        # Si se marca como default, desmarcar las demás
+        if inp.is_default:
+            await self._account_repo.clear_default_for_user(inp.user_id)
+
+        # Crear cuenta
         account = Account.create(
             user_id=inp.user_id,
             name=inp.name,
@@ -56,18 +45,16 @@ class CreateAccountUseCase:
             is_default=inp.is_default,
         )
 
-        # 3. Persistencia mediante el puerto
         await self._account_repo.save(account)
 
-        # 4. Retorno del DTO de salida
-        return CreateAccountOutput(
+        return AccountOutput(
             id=account.id,
             user_id=account.user_id,
             name=account.name,
-            type=account.type.value if hasattr(account.type, "value") else str(account.type),
+            type=account.type.value,
             currency=account.currency,
             initial_balance=account.initial_balance,
             current_balance=account.current_balance,
             is_default=account.is_default,
-            status=account.status.value if hasattr(account.status, "value") else str(account.status),
+            status=account.status.value,
         )

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import RecurringExpenseModel
-from modules.recurring_expenses.domain.entities.recurring_expense import RecurringExpense
+from modules.recurring_expenses.domain.entities.recurring_expense import (
+    RecurringExpense,
+)
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: RecurringExpenseModel) -> RecurringExpense:
@@ -24,20 +28,18 @@ def to_model(domain: RecurringExpense) -> RecurringExpenseModel:
     return RecurringExpenseModel(
         id=uuid.UUID(domain.id) if _is_uuid(domain.id) else uuid.uuid4(),
         user_id=uuid.UUID(domain.user_id) if _is_uuid(domain.user_id) else uuid.uuid4(),
-        account_id=uuid.UUID(domain.account_id) if _is_uuid(domain.account_id) else uuid.uuid4(),
-        category_id=uuid.UUID(domain.category_id) if _is_uuid(domain.category_id) else None,
+        account_id=uuid.UUID(domain.account_id)
+        if _is_uuid(domain.account_id)
+        else uuid.uuid4(),
+        category_id=uuid.UUID(domain.category_id)
+        if _is_uuid(domain.category_id)
+        else None,
         amount=domain.amount,
-        frequency=domain.frequency.value if hasattr(domain.frequency, "value") else str(domain.frequency),
+        frequency=domain.frequency.value
+        if hasattr(domain.frequency, "value")
+        else str(domain.frequency),
         next_date=domain.next_date,
         description=domain.description,
         status=domain.status,
         created_at=domain.created_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

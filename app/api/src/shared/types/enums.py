@@ -3,16 +3,21 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-def _safe_enum(value: object, enum_cls: type[StrEnum], default: StrEnum) -> StrEnum:
-    """Si el valor no pertenece al enum, retorna default."""
+def _safe_enum[EnumT: StrEnum](
+    value: object,
+    enum_cls: type[EnumT],
+    default: EnumT,
+) -> EnumT:
+    """Convierte un valor al enum indicado o devuelve su valor por defecto."""
     if value is None:
         return default
+
     if isinstance(value, enum_cls):
         return value
+
     try:
-        # value puede venir como str de DB
-        s = str(value).strip().upper()
-        return enum_cls(s)
+        normalized = str(value).strip().upper()
+        return enum_cls(normalized)
     except (ValueError, AttributeError):
         return default
 

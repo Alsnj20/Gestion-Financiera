@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import TagModel
 from modules.tags.domain.entities.tag import Tag
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: TagModel) -> Tag:
@@ -21,11 +23,3 @@ def to_model(domain: Tag) -> TagModel:
         name=domain.name,
         created_at=domain.created_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

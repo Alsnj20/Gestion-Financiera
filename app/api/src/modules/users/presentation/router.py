@@ -6,10 +6,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from composition import build_user_repository
 from infrastructure.database.session import get_session
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
+from modules.auth.presentation.dependencies import (
+    get_current_user,
+    check_ownership,
+    require_admin,
+)
 from modules.users.presentation.schemas import UserResponseSchema
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def _to_response(user) -> UserResponseSchema:
+    return UserResponseSchema(
+        id=user.id, name=user.name, phone=user.phone, email=user.email,
+        role=user.role, is_verified=user.is_verified,
+        timezone=user.timezone, currency=user.currency,
+    )
+
+
+@router.get("", response_model=list[UserResponseSchema])
+async def list_users(
+    current_user: dict = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Directorio de usuarios: solo admin (solo lectura)."""
+    repo = build_user_repository(session)
+    users = await repo.list_all()
+    return [_to_response(u) for u in users]
 
 
 class UpdateUserRequestSchema(BaseModel):
@@ -72,15 +95,14 @@ async def update_user(
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
+    """Borrado total (CASCADE): solo admin, vía solicitud GDPR."""
     repo = build_user_repository(session)
     user = await repo.find_by_id(user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
-
-    check_ownership(user, current_user)
 
     await repo.delete(user_id)
     await session.commit()

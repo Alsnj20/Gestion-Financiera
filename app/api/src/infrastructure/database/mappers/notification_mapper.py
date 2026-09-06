@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import NotificationModel
 from modules.notifications.domain.entities.notification import Notification
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: NotificationModel) -> Notification:
@@ -30,16 +32,10 @@ def to_model(domain: Notification) -> NotificationModel:
         message=domain.message,
         scheduled_at=domain.scheduled_at,
         sent_at=domain.sent_at,
-        status=domain.status.value if hasattr(domain.status, "value") else str(domain.status),
+        status=domain.status.value
+        if hasattr(domain.status, "value")
+        else str(domain.status),
         related_entity_type=domain.related_entity_type,
         related_entity_id=domain.related_entity_id,
         created_at=domain.created_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

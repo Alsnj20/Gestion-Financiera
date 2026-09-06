@@ -4,6 +4,7 @@ import uuid
 
 from infrastructure.database.models import UserModel
 from modules.users.domain.entities.user import User
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: UserModel) -> User:
@@ -48,11 +49,3 @@ def update_model(model: UserModel, domain: User) -> None:
     model.timezone = domain.timezone
     model.currency = domain.currency
     model.updated_at = domain.updated_at
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

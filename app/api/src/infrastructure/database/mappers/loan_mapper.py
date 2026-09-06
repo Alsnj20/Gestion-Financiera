@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+
 from infrastructure.database.models import LoanModel
 from modules.loans.domain.entities.loan import Loan
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 def to_domain(model: LoanModel) -> Loan:
@@ -33,23 +35,23 @@ def to_model(domain: Loan) -> LoanModel:
         borrower_name=domain.borrower_name,
         principal_amount=domain.principal_amount,
         interest_rate=domain.interest_rate,
-        interest_rate_type=domain.interest_rate_type.value if hasattr(domain.interest_rate_type, "value") else str(domain.interest_rate_type),
-        payment_frequency=domain.payment_frequency.value if hasattr(domain.payment_frequency, "value") else str(domain.payment_frequency),
+        interest_rate_type=domain.interest_rate_type.value
+        if hasattr(domain.interest_rate_type, "value")
+        else str(domain.interest_rate_type),
+        payment_frequency=domain.payment_frequency.value
+        if hasattr(domain.payment_frequency, "value")
+        else str(domain.payment_frequency),
         installment_count=domain.installment_count,
         installment_amount=domain.installment_amount,
         start_date=domain.start_date,
         first_due_date=domain.first_due_date,
-        amortization_method=domain.amortization_method.value if hasattr(domain.amortization_method, "value") else str(domain.amortization_method),
-        status=domain.status.value if hasattr(domain.status, "value") else str(domain.status),
+        amortization_method=domain.amortization_method.value
+        if hasattr(domain.amortization_method, "value")
+        else str(domain.amortization_method),
+        status=domain.status.value
+        if hasattr(domain.status, "value")
+        else str(domain.status),
         notes=domain.notes,
         created_at=domain.created_at,
         updated_at=domain.updated_at,
     )
-
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False

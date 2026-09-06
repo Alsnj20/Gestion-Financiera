@@ -1,4 +1,5 @@
 from __future__ import annotations
+from shared.utils.uuids import is_uuid as _is_uuid
 
 import uuid
 from datetime import datetime
@@ -92,10 +93,3 @@ class SqlAlchemyOtpRepository:
         result = await self._session.execute(stmt)
         return len(result.scalars().all())
 
-
-def _is_uuid(value: str) -> bool:
-    try:
-        uuid.UUID(str(value))
-        return True
-    except Exception:
-        return False
