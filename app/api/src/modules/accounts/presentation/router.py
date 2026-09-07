@@ -10,10 +10,8 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from composition import get_account_controller
-from infrastructure.database.session import get_session
 from modules.accounts.application.use_cases.archive_account import ArchiveAccountInput
 from modules.accounts.application.use_cases.get_account import GetAccountInput
 from modules.accounts.application.use_cases.list_accounts import ListAccountsByUserInput
@@ -33,7 +31,6 @@ from modules.auth.presentation.dependencies import get_current_user
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 user_accounts_router = APIRouter(prefix="/users/{user_id}/accounts", tags=["accounts"])
 CurrentUser = Annotated[dict, Depends(get_current_user)]
-DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
 AccountCtrl = Annotated[AccountController, Depends(get_account_controller)]
 
 

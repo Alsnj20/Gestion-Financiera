@@ -68,26 +68,38 @@ from modules.tags.application.use_cases.create_tag import CreateTagUseCase
 from modules.tags.infrastructure.adapters.sqlalchemy_tag_repository import (
     SqlAlchemyTagRepository,
 )
-from modules.transactions.application.use_cases.create_transaction import (
-    CreateTransactionUseCase,
-)
 from modules.transactions.infrastructure.adapters.sqlalchemy_transaction_repository import (
     SqlAlchemyTransactionRepository,
 )
-from modules.transfers.application.use_cases.create_transfer import (
-    CreateTransferUseCase,
+from modules.transactions.presentation.controllers.transaction_controller import (
+    TransactionController,
 )
 from modules.transfers.infrastructure.adapters.sqlalchemy_transfer_repository import (
     SqlAlchemyTransferRepository,
 )
+from modules.transfers.presentation.controllers.transfer_controller import (
+    TransferController,
+)
 from modules.users.infrastructure.adapters.sqlalchemy_user_repository import (
     SqlAlchemyUserRepository,
 )
+from modules.users.presentation.controllers.user_controller import UserController
 
 
 # ---- Users ----
 def build_user_repository(session: AsyncSession) -> SqlAlchemyUserRepository:
     return SqlAlchemyUserRepository(session)
+
+
+def build_user_controller(session: AsyncSession) -> UserController:
+    return UserController(SqlAlchemyUserRepository(session), session)
+
+
+def get_user_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UserController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_user_controller(session)
 
 
 # ---- Accounts ----
@@ -103,19 +115,19 @@ def get_account_controller(
 
 
 # ---- Transactions ----
-def build_create_transaction_use_case(
-    session: AsyncSession,
-) -> CreateTransactionUseCase:
-    return CreateTransactionUseCase(
+def build_transaction_controller(session: AsyncSession) -> TransactionController:
+    return TransactionController(
         SqlAlchemyTransactionRepository(session),
         SqlAlchemyAccountRepository(session),
+        session,
     )
 
 
-def build_transaction_repository(
-    session: AsyncSession,
-) -> SqlAlchemyTransactionRepository:
-    return SqlAlchemyTransactionRepository(session)
+def get_transaction_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TransactionController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_transaction_controller(session)
 
 
 # ---- Categories ----
@@ -181,12 +193,20 @@ def build_notification_repository(
 
 
 # ---- Transfers ----
-def build_create_transfer_use_case(session: AsyncSession) -> CreateTransferUseCase:
-    return CreateTransferUseCase(
+def build_transfer_controller(session: AsyncSession) -> TransferController:
+    return TransferController(
         SqlAlchemyTransferRepository(session),
         SqlAlchemyTransactionRepository(session),
         SqlAlchemyAccountRepository(session),
+        session,
     )
+
+
+def get_transfer_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TransferController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_transfer_controller(session)
 
 
 # ---- Loans ----

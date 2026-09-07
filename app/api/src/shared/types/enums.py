@@ -71,10 +71,21 @@ class TransactionSource(StrEnum):
     TELEGRAM = "TELEGRAM"
     DASHBOARD = "DASHBOARD"
     IMPORT = "IMPORT"
+    TRANSFER = "TRANSFER"
 
     @classmethod
     def safe(cls, value: object) -> TransactionSource:
         return _safe_enum(value, cls, cls.MANUAL)
+
+
+# --- Transfer ---
+class TransferStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    REVERSED = "REVERSED"
+
+    @classmethod
+    def safe(cls, value: object) -> TransferStatus:
+        return _safe_enum(value, cls, cls.ACTIVE)
 
 
 # --- Category ---

@@ -328,8 +328,14 @@ class TransferModel(Base):
     description: Mapped[str] = mapped_column(
         Text, nullable=False, default="", server_default=""
     )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="ACTIVE", server_default="ACTIVE"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
     )
 
 

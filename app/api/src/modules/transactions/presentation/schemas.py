@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-from decimal import Decimal
 from datetime import datetime
-from typing import Optional
-from modules.transactions.application.use_cases.create_transaction import CreateTransactionInput
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+from modules.transactions.application.use_cases.create_transaction import (
+    CreateTransactionInput,
+)
 
 
 class CreateTransactionRequestSchema(BaseModel):
     """Schema Pydantic para deserializar y validar el Request HTTP."""
-    account_id: str = Field(..., min_length=1)
-    type: str = Field(..., pattern="^(INCOME|EXPENSE)$")
-    amount: Decimal = Field(..., gt=0)
+
+    account_id: str = Field(min_length=1)
+    type: str = Field(pattern="^(INCOME|EXPENSE)$")
+    amount: Decimal = Field(gt=0)
     currency: str = Field(default="PEN", max_length=10)
     description: str = Field(default="", max_length=500)
     category_id: str = Field(default="", max_length=100)
@@ -19,10 +23,10 @@ class CreateTransactionRequestSchema(BaseModel):
     source: str = Field(default="MANUAL", max_length=20)
     transaction_date: datetime | None = None
 
-    def to_input_dto(self) -> CreateTransactionInput:
+    def to_input_dto(self, user_id: str) -> CreateTransactionInput:
         """Traducción explícita del Schema HTTP al DTO de la Capa de Aplicación."""
         return CreateTransactionInput(
-            user_id="",
+            user_id=user_id,
             account_id=self.account_id,
             type=self.type,
             amount=self.amount,
@@ -36,15 +40,16 @@ class CreateTransactionRequestSchema(BaseModel):
 
 
 class UpdateTransactionRequestSchema(BaseModel):
-    amount: Optional[Decimal] = Field(default=None, gt=0)
-    description: Optional[str] = Field(default=None, max_length=500)
-    category_id: Optional[str] = Field(default=None, max_length=100)
-    payment_method_id: Optional[str] = Field(default=None, max_length=100)
-    status: Optional[str] = Field(default=None, max_length=20)
+    """Solo metadatos: amount/type/account_id/status no se editan por PUT."""
+
+    description: str | None = Field(default=None, max_length=500)
+    category_id: str | None = Field(default=None, max_length=100)
+    payment_method_id: str | None = Field(default=None, max_length=100)
 
 
 class TransactionResponseSchema(BaseModel):
     """Presenter DTO para estandarizar la salida JSON."""
+
     id: str
     user_id: str
     account_id: str

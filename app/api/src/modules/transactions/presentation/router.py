@@ -1,151 +1,137 @@
+"""Transaction Router — Solo enruta, delega al Controller."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+from typing import Annotated
 
-from composition import build_create_transaction_use_case, build_transaction_repository
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
-from infrastructure.database.session import get_session
-from modules.transactions.presentation.schemas import CreateTransactionRequestSchema, UpdateTransactionRequestSchema, TransactionResponseSchema
-from shared.errors import ConflictError, ValidationError
+from fastapi import APIRouter, Depends, status
+
+from composition import get_transaction_controller
+from modules.auth.presentation.dependencies import get_current_user
+from modules.transactions.application.use_cases.cancel_transaction import (
+    CancelTransactionInput,
+)
+from modules.transactions.application.use_cases.get_transaction import (
+    GetTransactionInput,
+)
+from modules.transactions.application.use_cases.list_transactions import (
+    ListTransactionsInput,
+)
+from modules.transactions.application.use_cases.update_transaction import (
+    UpdateTransactionInput,
+)
+from modules.transactions.presentation.controllers.transaction_controller import (
+    TransactionController,
+)
+from modules.transactions.presentation.schemas import (
+    CreateTransactionRequestSchema,
+    TransactionResponseSchema,
+    UpdateTransactionRequestSchema,
+)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+TxCtrl = Annotated[TransactionController, Depends(get_transaction_controller)]
 
-@router.post("", response_model=TransactionResponseSchema, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "", response_model=TransactionResponseSchema, status_code=status.HTTP_201_CREATED
+)
 async def create_transaction(
     payload: CreateTransactionRequestSchema,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: CurrentUser,
+    controller: TxCtrl,
 ):
-    use_case = build_create_transaction_use_case(session)
-    try:
-        # Traduce Pydantic a DTO nativo antes de ejecutar la aplicación
-        input_dto = payload.to_input_dto()
-        input_dto.user_id = current_user["user_id"]
-        result = await use_case.execute(input_dto)
-        await session.commit()
-
-        return TransactionResponseSchema(
-            id=result.id,
-            user_id=result.user_id,
-            account_id=result.account_id,
-            type=result.type,
-            amount=result.amount,
-            currency=result.currency,
-            description=result.description,
-            category_id=result.category_id,
-            payment_method_id=result.payment_method_id,
-            source=result.source,
-            status=result.status,
-            transaction_date=result.transaction_date,
-        )
-    except (ValidationError, ValueError) as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "VALIDATION_ERROR", "message": str(e)},
-        ) from e
-    except ConflictError as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": e.code, "message": e.message},
-        ) from e
+    # user_id sale del JWT, nunca del body.
+    result = await controller.create(
+        payload.to_input_dto(user_id=current_user["user_id"])
+    )
+    return TransactionResponseSchema(**result)
 
 
 @router.get("/{tx_id}", response_model=TransactionResponseSchema)
-async def get_transaction(tx_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_transaction_repository(session)
-    tx = await repo.find_by_id(tx_id)
-    if not tx:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transacción no encontrada")
-    check_ownership(tx, current_user)
-
-    return TransactionResponseSchema(
-        id=tx.id,
-        user_id=tx.user_id,
-        account_id=tx.account_id,
-        type=tx.type.value if hasattr(tx.type, "value") else str(tx.type),
-        amount=tx.amount,
-        currency=tx.currency,
-        description=tx.description,
-        category_id=tx.category_id,
-        payment_method_id=tx.payment_method_id,
-        source=tx.source.value if hasattr(tx.source, "value") else str(tx.source),
-        status=tx.status.value if hasattr(tx.status, "value") else str(tx.status),
-        transaction_date=tx.transaction_date,
+async def get_transaction(
+    tx_id: str,
+    current_user: CurrentUser,
+    controller: TxCtrl,
+):
+    result = await controller.get(
+        GetTransactionInput(
+            tx_id=tx_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
     )
+    return TransactionResponseSchema(**result)
 
 
 @router.get("/user/{user_id}", response_model=list[TransactionResponseSchema])
 async def list_transactions_by_user(
     user_id: str,
-    session: AsyncSession = Depends(get_session),
-    current_user: dict = Depends(get_current_user),
+    current_user: CurrentUser,
+    controller: TxCtrl,
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
+    account_id: str | None = None,
+    type: str | None = None,
 ):
-    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-    repo = build_transaction_repository(session)
-    transactions = await repo.list_by_user(user_id)
-
-    return [
-        TransactionResponseSchema(
-            id=tx.id,
-            user_id=tx.user_id,
-            account_id=tx.account_id,
-            type=tx.type.value if hasattr(tx.type, "value") else str(tx.type),
-            amount=tx.amount,
-            currency=tx.currency,
-            description=tx.description,
-            category_id=tx.category_id,
-            payment_method_id=tx.payment_method_id,
-            source=tx.source.value if hasattr(tx.source, "value") else str(tx.source),
-            status=tx.status.value if hasattr(tx.status, "value") else str(tx.status),
-            transaction_date=tx.transaction_date,
+    result = await controller.list_by_user(
+        ListTransactionsInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+            from_date=from_date,
+            to_date=to_date,
+            account_id=account_id,
+            type=type,
         )
-        for tx in transactions
-    ]
+    )
+    return [TransactionResponseSchema(**item) for item in result]
 
 
 @router.put("/{tx_id}", response_model=TransactionResponseSchema)
-async def update_transaction(tx_id: str, payload: UpdateTransactionRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_transaction_repository(session)
-    tx = await repo.find_by_id(tx_id)
-    if not tx:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transacción no encontrada")
-    check_ownership(tx, current_user)
+async def update_transaction(
+    tx_id: str,
+    payload: UpdateTransactionRequestSchema,
+    current_user: CurrentUser,
+    controller: TxCtrl,
+):
+    """Solo metadatos (description/category/payment_method).
 
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(tx, field, value)
-
-    await repo.save(tx)
-    await session.commit()
-
-    return TransactionResponseSchema(
-        id=tx.id,
-        user_id=tx.user_id,
-        account_id=tx.account_id,
-        type=tx.type.value if hasattr(tx.type, "value") else str(tx.type),
-        amount=tx.amount,
-        currency=tx.currency,
-        description=tx.description,
-        category_id=tx.category_id,
-        payment_method_id=tx.payment_method_id,
-        source=tx.source.value if hasattr(tx.source, "value") else str(tx.source),
-        status=tx.status.value if hasattr(tx.status, "value") else str(tx.status),
-        transaction_date=tx.transaction_date,
+    amount/type/account_id son inmutables: para corregir un monto se
+    cancela y se recrea, así el balance nunca se descuadra.
+    """
+    result = await controller.update(
+        UpdateTransactionInput(
+            tx_id=tx_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+            description=payload.description,
+            category_id=payload.category_id,
+            payment_method_id=payload.payment_method_id,
+        )
     )
+    return TransactionResponseSchema(**result)
 
 
-@router.delete("/{tx_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_transaction(tx_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_transaction_repository(session)
-    tx = await repo.find_by_id(tx_id)
-    if not tx:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transacción no encontrada")
-    check_ownership(tx, current_user)
+@router.post("/{tx_id}/cancel", response_model=TransactionResponseSchema)
+async def cancel_transaction(
+    tx_id: str,
+    current_user: CurrentUser,
+    controller: TxCtrl,
+):
+    """Cancela revirtiendo el efecto en el balance. Idempotente.
 
-    await repo.delete(tx_id)
-    await session.commit()
+    Es la única vía de anulación: el libro mayor no se borra,
+    se cancela (la fila se conserva con status CANCELLED).
+    """
+    result = await controller.cancel(
+        CancelTransactionInput(
+            tx_id=tx_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
+    )
+    return TransactionResponseSchema(**result)

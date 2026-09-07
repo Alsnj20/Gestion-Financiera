@@ -41,10 +41,16 @@ class SqlAlchemyAccountRepository:
                 message="No se pudo guardar la cuenta.",
             ) from exc
 
-    async def find_by_id(self, account_id: str) -> Account | None:
+    async def find_by_id(
+        self, account_id: str, *, for_update: bool = False
+    ) -> Account | None:
         if not _is_uuid(account_id):
             return None
-        model = await self._session.get(AccountModel, uuid.UUID(account_id))
+        model = await self._session.get(
+            AccountModel,
+            uuid.UUID(account_id),
+            with_for_update=True if for_update else None,
+        )
         if model is None:
             return None
         return to_domain(model)
@@ -105,4 +111,4 @@ class SqlAlchemyAccountRepository:
         )
 
         result = await self._session.execute(stmt)
-        return result.scalars().first() is not None
+        return result.scalar() is not None

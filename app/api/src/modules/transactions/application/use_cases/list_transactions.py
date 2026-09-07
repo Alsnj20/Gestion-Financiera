@@ -1,27 +1,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
 from datetime import datetime
 
-from modules.transactions.application.ports.transaction_repository import TransactionRepositoryPort
+from modules.transactions.application.dtos import (
+    ListTransactionsOutput,
+    to_transaction_output,
+)
+from modules.transactions.application.ports.transaction_repository import (
+    TransactionRepositoryPort,
+)
+from shared.errors import BusinessRuleError
 
 
 @dataclass(frozen=True, slots=True)
-class TransactionOutput:
-    """DTO de salida para una transacción."""
-    id: str
+class ListTransactionsInput:
     user_id: str
-    account_id: str
-    type: str
-    amount: Decimal
-    currency: str
-    description: str
-    category_id: str
-    payment_method_id: str
-    source: str
-    status: str
-    transaction_date: datetime
+    requester_id: str
+    requester_role: str = "USER"
+    from_date: datetime | None = None
+    to_date: datetime | None = None
+    account_id: str | None = None
+    type: str | None = None
 
 
 class ListTransactionsUseCase:
@@ -30,35 +30,19 @@ class ListTransactionsUseCase:
     def __init__(self, tx_repo: TransactionRepositoryPort) -> None:
         self._tx_repo = tx_repo
 
-    async def execute(
-        self,
-        user_id: str,
-        from_date: datetime | None = None,
-        to_date: datetime | None = None,
-        account_id: str | None = None,
-        type: str | None = None,
-    ) -> list[TransactionOutput]:
-        transactions = await self._tx_repo.list_by_user(
-            user_id,
-            from_date=from_date,
-            to_date=to_date,
-            account_id=account_id,
-            type=type,
-        )
-        return [
-            TransactionOutput(
-                id=tx.id,
-                user_id=tx.user_id,
-                account_id=tx.account_id,
-                type=tx.type.value if hasattr(tx.type, "value") else str(tx.type),
-                amount=tx.amount,
-                currency=tx.currency,
-                description=tx.description,
-                category_id=tx.category_id,
-                payment_method_id=tx.payment_method_id,
-                source=tx.source.value if hasattr(tx.source, "value") else str(tx.source),
-                status=tx.status.value if hasattr(tx.status, "value") else str(tx.status),
-                transaction_date=tx.transaction_date,
+    async def execute(self, inp: ListTransactionsInput) -> list[ListTransactionsOutput]:
+        # Lectura: dueño o admin.
+        if inp.user_id != inp.requester_id and inp.requester_role != "ADMIN":
+            raise BusinessRuleError(
+                code="FORBIDDEN",
+                message="No autorizado",
             )
-            for tx in transactions
-        ]
+
+        transactions = await self._tx_repo.list_by_user(
+            inp.user_id,
+            from_date=inp.from_date,
+            to_date=inp.to_date,
+            account_id=inp.account_id,
+            type=inp.type,
+        )
+        return [to_transaction_output(tx) for tx in transactions]

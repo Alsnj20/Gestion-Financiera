@@ -12,17 +12,17 @@ from shared.utils.uuids import is_uuid as _is_uuid
 def to_domain(model: AccountModel) -> Account:
     """Converts a database model to a domain entity."""
     return Account.rehydrate(
-        id=str(model.id) if model.id else "",
-        user_id=str(model.user_id) if model.user_id else "",
-        name=getattr(model, "name", ""),
-        type=getattr(model, "type", "OTHER"),
-        currency=getattr(model, "currency", "PEN"),
-        initial_balance=getattr(model, "initial_balance", 0),
-        current_balance=getattr(model, "current_balance", None),
-        is_default=getattr(model, "is_default", False),
-        status=getattr(model, "status", "ACTIVE"),
-        created_at=getattr(model, "created_at", None),
-        updated_at=getattr(model, "updated_at", None),
+        id=str(model.id),
+        user_id=str(model.user_id),
+        name=model.name,
+        type=model.type,
+        currency=model.currency,
+        initial_balance=model.initial_balance,
+        current_balance=model.current_balance,
+        is_default=model.is_default,
+        status=model.status,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
     )
 
 
@@ -32,14 +32,12 @@ def to_model(domain: Account) -> AccountModel:
         id=uuid.UUID(domain.id) if _is_uuid(domain.id) else uuid.uuid4(),
         user_id=uuid.UUID(domain.user_id) if _is_uuid(domain.user_id) else uuid.uuid4(),
         name=domain.name,
-        type=domain.type.value if hasattr(domain.type, "value") else str(domain.type),
+        type=domain.type.value,
         currency=domain.currency,
         initial_balance=domain.initial_balance,
         current_balance=domain.current_balance,
         is_default=domain.is_default,
-        status=domain.status.value
-        if hasattr(domain.status, "value")
-        else str(domain.status),
+        status=domain.status.value,
         created_at=domain.created_at,
         updated_at=domain.updated_at,
     )
