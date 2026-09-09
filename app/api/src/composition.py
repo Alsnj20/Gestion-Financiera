@@ -18,6 +18,17 @@ from modules.audit_logs.application.use_cases.create_audit_log import (
 from modules.audit_logs.infrastructure.adapters.sqlalchemy_audit_log_repository import (
     SqlAlchemyAuditLogRepository,
 )
+from modules.auth.infrastructure.adapters.sqlalchemy_otp_repository import (
+    SqlAlchemyOtpRepository,
+)
+from modules.auth.infrastructure.adapters.sqlalchemy_refresh_session_repository import (
+    SqlAlchemyRefreshSessionRepository,
+)
+from modules.auth.infrastructure.adapters.sqlalchemy_whatsapp_link_repository import (
+    SqlAlchemyWhatsAppLinkRepository,
+)
+from modules.auth.infrastructure.otp_senders import DevelopmentOtpSender, NullOtpSender
+from modules.auth.presentation.controllers.auth_controller import AuthController
 from modules.budgets.application.use_cases.create_budget import CreateBudgetUseCase
 from modules.budgets.infrastructure.adapters.sqlalchemy_budget_repository import (
     SqlAlchemyBudgetRepository,
@@ -84,6 +95,33 @@ from modules.users.infrastructure.adapters.sqlalchemy_user_repository import (
     SqlAlchemyUserRepository,
 )
 from modules.users.presentation.controllers.user_controller import UserController
+from shared.settings import settings
+
+
+# ---- Auth ----
+def build_otp_sender() -> DevelopmentOtpSender | NullOtpSender:
+    """Provider según configuración (D8): dev registra en DEBUG, prod exige real."""
+    if settings.otp_sender_name == "log":
+        return DevelopmentOtpSender()
+    return NullOtpSender()
+
+
+def build_auth_controller(session: AsyncSession) -> AuthController:
+    return AuthController(
+        SqlAlchemyOtpRepository(session),
+        SqlAlchemyWhatsAppLinkRepository(session),
+        SqlAlchemyUserRepository(session),
+        SqlAlchemyRefreshSessionRepository(session),
+        build_otp_sender(),
+        session,
+    )
+
+
+def get_auth_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuthController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_auth_controller(session)
 
 
 # ---- Users ----

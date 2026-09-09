@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from modules.auth.application.ports.whatsapp_link_repository import WhatsAppLinkRepositoryPort
+from modules.auth.application.ports.whatsapp_link_repository import (
+    WhatsAppLinkRepositoryPort,
+)
+from shared.errors import ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,17 +29,22 @@ class ValidateLinkTokenUseCase:
         token_data = await self._link_repo.find_by_token(inp.token)
 
         if not token_data:
-            return ValidateLinkTokenOutput(valid=False, phone_number="", already_linked=False)
-
-        if token_data["linked"]:
-            return ValidateLinkTokenOutput(
-                valid=False,
-                phone_number=token_data["phone_number"],
-                already_linked=True,
+            raise ValidationError(
+                code="LINK_TOKEN_INVALID",
+                message="Token inválido o expirado",
             )
 
-        if datetime.now(timezone.utc) > token_data["expires_at"]:
-            return ValidateLinkTokenOutput(valid=False, phone_number="", already_linked=False)
+        if token_data["linked"]:
+            raise ValidationError(
+                code="LINK_TOKEN_USED",
+                message="Token ya utilizado",
+            )
+
+        if datetime.now(UTC) > token_data["expires_at"]:
+            raise ValidationError(
+                code="LINK_TOKEN_EXPIRED",
+                message="Token inválido o expirado",
+            )
 
         return ValidateLinkTokenOutput(
             valid=True,

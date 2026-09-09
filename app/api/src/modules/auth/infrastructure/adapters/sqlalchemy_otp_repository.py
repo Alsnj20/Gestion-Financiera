@@ -1,19 +1,22 @@
 from __future__ import annotations
-from shared.utils.uuids import is_uuid as _is_uuid
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.database.models import VerificationCodeModel
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 class SqlAlchemyOtpRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def save(self, user_id: str, code: str, channel: str, purpose: str, expires_at: datetime) -> None:
+    async def save(
+        self, user_id: str, code: str, channel: str, purpose: str, expires_at: datetime
+    ) -> None:
         model = VerificationCodeModel(
             id=uuid.uuid4(),
             user_id=uuid.UUID(user_id) if _is_uuid(user_id) else uuid.uuid4(),
@@ -25,7 +28,9 @@ class SqlAlchemyOtpRepository:
         self._session.add(model)
         await self._session.flush()
 
-    async def find_latest(self, user_id: str, channel: str, purpose: str) -> dict | None:
+    async def find_latest(
+        self, user_id: str, channel: str, purpose: str
+    ) -> dict | None:
         stmt = (
             select(VerificationCodeModel)
             .where(
@@ -65,7 +70,9 @@ class SqlAlchemyOtpRepository:
             model.used = True
             await self._session.flush()
 
-    async def increment_attempts(self, user_id: str, channel: str, purpose: str) -> None:
+    async def increment_attempts(
+        self, user_id: str, channel: str, purpose: str
+    ) -> None:
         stmt = (
             select(VerificationCodeModel)
             .where(
@@ -83,8 +90,9 @@ class SqlAlchemyOtpRepository:
             await self._session.flush()
 
     async def count_recent(self, user_id: str, channel: str, minutes: int) -> int:
-        from datetime import timedelta, timezone
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        from datetime import timedelta
+
+        cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
         stmt = select(VerificationCodeModel).where(
             VerificationCodeModel.user_id == uuid.UUID(user_id),
             VerificationCodeModel.channel == channel,
@@ -92,4 +100,3 @@ class SqlAlchemyOtpRepository:
         )
         result = await self._session.execute(stmt)
         return len(result.scalars().all())
-

@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from composition import get_transfer_controller
-from modules.auth.presentation.dependencies import get_current_user
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
 from modules.transfers.application.use_cases.get_transfer import GetTransferInput
 from modules.transfers.application.use_cases.reverse_transfer import (
     ReverseTransferInput,
@@ -23,6 +23,7 @@ from modules.transfers.presentation.schemas import (
 router = APIRouter(prefix="/transfers", tags=["transfers"])
 
 CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
 TransferCtrl = Annotated[TransferController, Depends(get_transfer_controller)]
 
 
@@ -60,7 +61,7 @@ async def get_transfer(
 @router.post("/{transfer_id}/reverse", response_model=TransferResponseSchema)
 async def reverse_transfer(
     transfer_id: str,
-    current_user: CurrentUser,
+    current_user: ActiveUser,
     controller: TransferCtrl,
 ):
     """Revierte la transferencia: deshace balances, marca patas y elimina el agregado."""

@@ -1,12 +1,13 @@
 from __future__ import annotations
-from shared.utils.uuids import is_uuid as _is_uuid
 
 import uuid
 from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.database.models import WhatsAppLinkTokenModel
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 class SqlAlchemyWhatsAppLinkRepository:
@@ -25,7 +26,9 @@ class SqlAlchemyWhatsAppLinkRepository:
         return str(model.id)
 
     async def find_by_token(self, token: str) -> dict | None:
-        stmt = select(WhatsAppLinkTokenModel).where(WhatsAppLinkTokenModel.token == token)
+        stmt = select(WhatsAppLinkTokenModel).where(
+            WhatsAppLinkTokenModel.token == token
+        )
         result = await self._session.execute(stmt)
         model = result.scalars().first()
         if not model:
@@ -40,7 +43,9 @@ class SqlAlchemyWhatsAppLinkRepository:
         }
 
     async def link(self, token: str, user_id: str) -> None:
-        stmt = select(WhatsAppLinkTokenModel).where(WhatsAppLinkTokenModel.token == token)
+        stmt = select(WhatsAppLinkTokenModel).where(
+            WhatsAppLinkTokenModel.token == token
+        )
         result = await self._session.execute(stmt)
         model = result.scalars().first()
         if model:
@@ -66,4 +71,3 @@ class SqlAlchemyWhatsAppLinkRepository:
             "phone_number": model.phone_number,
             "linked": model.linked,
         }
-

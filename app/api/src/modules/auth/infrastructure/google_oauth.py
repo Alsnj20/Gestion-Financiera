@@ -1,11 +1,12 @@
 """Google OAuth token verification using Google's official libraries."""
+
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 
-from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 

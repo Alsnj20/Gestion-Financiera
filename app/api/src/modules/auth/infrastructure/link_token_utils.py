@@ -1,8 +1,9 @@
 """WhatsApp linking token utilities."""
+
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def generate_link_token() -> str:
@@ -12,4 +13,4 @@ def generate_link_token() -> str:
 
 def get_link_token_expiry(hours: int = 24) -> datetime:
     """Get expiry datetime for link token."""
-    return datetime.now(timezone.utc) + timedelta(hours=hours)
+    return datetime.now(UTC) + timedelta(hours=hours)

@@ -25,12 +25,13 @@ from modules.accounts.presentation.schemas import (
     CreateAccountRequestSchema,
     UpdateAccountRequestSchema,
 )
-from modules.auth.presentation.dependencies import get_current_user
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
 
 # ---- Routers ----
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 user_accounts_router = APIRouter(prefix="/users/{user_id}/accounts", tags=["accounts"])
 CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
 AccountCtrl = Annotated[AccountController, Depends(get_account_controller)]
 
 
@@ -145,7 +146,7 @@ async def update_account(
 )
 async def archive_account(
     account_id: str,
-    current_user: CurrentUser,
+    current_user: ActiveUser,
     controller: AccountCtrl,
 ):
     await controller.archive(

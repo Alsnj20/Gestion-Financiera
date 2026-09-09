@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from composition import get_transaction_controller
-from modules.auth.presentation.dependencies import get_current_user
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
 from modules.transactions.application.use_cases.cancel_transaction import (
     CancelTransactionInput,
 )
@@ -33,6 +33,7 @@ from modules.transactions.presentation.schemas import (
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
 TxCtrl = Annotated[TransactionController, Depends(get_transaction_controller)]
 
 
@@ -95,7 +96,7 @@ async def list_transactions_by_user(
 async def update_transaction(
     tx_id: str,
     payload: UpdateTransactionRequestSchema,
-    current_user: CurrentUser,
+    current_user: ActiveUser,
     controller: TxCtrl,
 ):
     """Solo metadatos (description/category/payment_method).
@@ -119,7 +120,7 @@ async def update_transaction(
 @router.post("/{tx_id}/cancel", response_model=TransactionResponseSchema)
 async def cancel_transaction(
     tx_id: str,
-    current_user: CurrentUser,
+    current_user: ActiveUser,
     controller: TxCtrl,
 ):
     """Cancela revirtiendo el efecto en el balance. Idempotente.

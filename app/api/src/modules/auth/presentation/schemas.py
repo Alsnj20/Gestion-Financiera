@@ -1,10 +1,12 @@
 """Auth schemas for Google OAuth, OTP, and WhatsApp linking."""
+
 from pydantic import BaseModel, Field
 
 
 # ---- Google OAuth (solo campo requerido es id_token) ----
 class GoogleAuthRequestSchema(BaseModel):
     """Email viene SOLO del token verificado de Google, nunca del body."""
+
     id_token: str = Field(..., min_length=10)
     phone: str = Field(default="", max_length=20)
     timezone: str = Field(default="America/Lima", max_length=64)
@@ -60,6 +62,7 @@ class RefreshRequestSchema(BaseModel):
 
 class RefreshResponseSchema(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
 
 
