@@ -1,86 +1,137 @@
+"""Loan Router — Solo enruta, delega al Controller."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from composition import build_create_loan_use_case, build_loan_repository
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
-from infrastructure.database.session import get_session
-from modules.loans.presentation.schemas import CreateLoanRequestSchema, UpdateLoanRequestSchema, LoanResponseSchema
-from shared.errors import ConflictError, ValidationError
+from fastapi import APIRouter, Depends, status
+
+from composition import get_loan_controller
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
+from modules.loans.application.use_cases.cancel_loan import CancelLoanInput
+from modules.loans.application.use_cases.get_loan import GetLoanInput
+from modules.loans.application.use_cases.list_loans import ListLoansInput
+from modules.loans.application.use_cases.register_loan_payment import (
+    RegisterLoanPaymentInput,
+)
+from modules.loans.application.use_cases.update_loan import UpdateLoanInput
+from modules.loans.presentation.controllers.loan_controller import LoanController
+from modules.loans.presentation.schemas import (
+    CreateLoanRequestSchema,
+    LoanResponseSchema,
+    RegisterPaymentRequestSchema,
+    RegisterPaymentResponseSchema,
+    UpdateLoanRequestSchema,
+)
 
 router = APIRouter(prefix="/loans", tags=["loans"])
 
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
+LoanCtrl = Annotated[LoanController, Depends(get_loan_controller)]
+
 
 @router.post("", response_model=LoanResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_loan(payload: CreateLoanRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    use_case = build_create_loan_use_case(session)
-    try:
-        input_dto = payload.to_input_dto()
-        input_dto.user_id = current_user["user_id"]
-        result = await use_case.execute(input_dto)
-        await session.commit()
-        return LoanResponseSchema(id=result.id, user_id=result.user_id, borrower_name=result.borrower_name, principal_amount=result.principal_amount, status=result.status)
-    except (ValidationError, ValueError) as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "VALIDATION_ERROR", "message": str(e)}) from e
-    except ConflictError as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": e.code, "message": e.message}) from e
+async def create_loan(
+    payload: CreateLoanRequestSchema,
+    current_user: CurrentUser,
+    controller: LoanCtrl,
+):
+    # user_id sale del JWT, nunca del body.
+    result = await controller.create(
+        payload.to_input_dto(user_id=current_user["user_id"])
+    )
+    return LoanResponseSchema(**result)
 
 
 @router.get("/user/{user_id}", response_model=list[LoanResponseSchema])
-async def list_loans_by_user(user_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-    repo = build_loan_repository(session)
-    loans = await repo.find_by_user(user_id)
-    return [LoanResponseSchema(id=l.id, user_id=l.user_id, borrower_name=l.borrower_name, principal_amount=l.principal_amount, status=l.status.value if hasattr(l.status, "value") else str(l.status)) for l in loans]
+async def list_loans_by_user(
+    user_id: str,
+    current_user: CurrentUser,
+    controller: LoanCtrl,
+):
+    result = await controller.list_by_user(
+        ListLoansInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
+    )
+    return [LoanResponseSchema(**item) for item in result]
 
 
 @router.get("/{loan_id}", response_model=LoanResponseSchema)
-async def get_loan(loan_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_loan_repository(session)
-    loan = await repo.find_by_id(loan_id)
-    if not loan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Préstamo no encontrado")
-    check_ownership(loan, current_user)
-    return LoanResponseSchema(
-        id=loan.id, user_id=loan.user_id, borrower_name=loan.borrower_name,
-        principal_amount=loan.principal_amount,
-        status=loan.status.value if hasattr(loan.status, "value") else str(loan.status),
+async def get_loan(
+    loan_id: str,
+    current_user: CurrentUser,
+    controller: LoanCtrl,
+):
+    result = await controller.get(
+        GetLoanInput(
+            loan_id=loan_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
     )
+    return LoanResponseSchema(**result)
 
 
 @router.put("/{loan_id}", response_model=LoanResponseSchema)
-async def update_loan(loan_id: str, payload: UpdateLoanRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_loan_repository(session)
-    loan = await repo.find_by_id(loan_id)
-    if not loan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Préstamo no encontrado")
-    check_ownership(loan, current_user)
-
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(loan, field, value)
-
-    await repo.save(loan)
-    await session.commit()
-
-    return LoanResponseSchema(
-        id=loan.id, user_id=loan.user_id, borrower_name=loan.borrower_name,
-        principal_amount=loan.principal_amount,
-        status=loan.status.value if hasattr(loan.status, "value") else str(loan.status),
+async def update_loan(
+    loan_id: str,
+    payload: UpdateLoanRequestSchema,
+    current_user: ActiveUser,
+    controller: LoanCtrl,
+):
+    """Solo metadatos (borrower_name/notes): el principal no se edita."""
+    result = await controller.update(
+        UpdateLoanInput(
+            loan_id=loan_id,
+            requester_id=current_user["user_id"],
+            borrower_name=payload.borrower_name,
+            notes=payload.notes,
+        )
     )
+    return LoanResponseSchema(**result)
 
 
-@router.delete("/{loan_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_loan(loan_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_loan_repository(session)
-    loan = await repo.find_by_id(loan_id)
-    if not loan:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Préstamo no encontrado")
-    check_ownership(loan, current_user)
+@router.post("/{loan_id}/cancel", response_model=LoanResponseSchema)
+async def cancel_loan(
+    loan_id: str,
+    current_user: ActiveUser,
+    controller: LoanCtrl,
+):
+    """Anulación lógica: la fila se conserva con CANCELLED, nunca se borra."""
+    result = await controller.cancel(
+        CancelLoanInput(loan_id=loan_id, requester_id=current_user["user_id"])
+    )
+    return LoanResponseSchema(**result)
 
-    await repo.delete(loan_id)
-    await session.commit()
+
+@router.post(
+    "/{loan_id}/payments",
+    response_model=RegisterPaymentResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def register_loan_payment(
+    loan_id: str,
+    payload: RegisterPaymentRequestSchema,
+    current_user: ActiveUser,
+    controller: LoanCtrl,
+):
+    """Registra un cobro: INCOME a la cuenta + cuota + balance. Cierra en PAID."""
+    result = await controller.register_payment(
+        RegisterLoanPaymentInput(
+            loan_id=loan_id,
+            requester_id=current_user["user_id"],
+            account_id=payload.account_id,
+            installment_id=payload.installment_id,
+            principal_amount=payload.principal_amount,
+            interest_amount=payload.interest_amount,
+            payment_date=payload.payment_date,
+            category_id=payload.category_id,
+            payment_method_id=payload.payment_method_id,
+            description=payload.description,
+        )
+    )
+    return RegisterPaymentResponseSchema(**result)

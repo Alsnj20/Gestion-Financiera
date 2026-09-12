@@ -6,13 +6,17 @@ tags/categories/etc. no dupliquen `_clean_str/_validate_bool`.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from shared.errors import ValidationError
 
 
 def utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def today() -> date:
+    return date.today()  # noqa: DTZ011 - date (sin hora) no lleva tz
 
 
 def clean_str(value: object, default: str = "") -> str:
@@ -40,3 +44,17 @@ def require_non_empty(value: str, code: str, message: str) -> str:
     if not value:
         raise ValidationError(code=code, message=message)
     return value
+
+
+def safe_date(value: object, default: date | None = None) -> date:
+    """Fecha defensiva: datetime/str ISO válidos, resto → default o hoy."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value.strip())
+        except ValueError:
+            pass
+    return default or today()

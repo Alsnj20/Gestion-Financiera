@@ -37,10 +37,7 @@ class GoogleAuthOutput:
 
 
 class GoogleAuthUseCase:
-    """Login o registro con Google (upsert por email verificado).
-
-    El email viene SOLO del token verificado de Google, nunca del body.
-    """
+    """Login o registro con Google (upsert por email verificado)"""
 
     def __init__(
         self,

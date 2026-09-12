@@ -5,9 +5,7 @@ from typing import Protocol
 
 class OtpSenderPort(Protocol):
     """Envío del OTP por el canal correspondiente.
-
-    El use case no sabe si está en dev o prod: composition inyecta
-    el provider según configuración (D8).
+    El use case: en dev o prod: composition inyecta
     """
 
     async def send(self, phone: str, channel: str, code: str) -> None: ...

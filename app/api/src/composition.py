@@ -45,18 +45,18 @@ from modules.conversations.application.use_cases.create_conversation_message imp
 from modules.conversations.infrastructure.adapters.sqlalchemy_conversation_message_repository import (
     SqlAlchemyConversationMessageRepository,
 )
-from modules.debts.application.use_cases.create_debt import CreateDebtUseCase
 from modules.debts.infrastructure.adapters.sqlalchemy_debt_repository import (
     SqlAlchemyDebtRepository,
 )
+from modules.debts.presentation.controllers.debt_controller import DebtController
 from modules.limits.application.use_cases.create_limit import CreateLimitUseCase
 from modules.limits.infrastructure.adapters.sqlalchemy_limit_repository import (
     SqlAlchemyLimitRepository,
 )
-from modules.loans.application.use_cases.create_loan import CreateLoanUseCase
 from modules.loans.infrastructure.adapters.sqlalchemy_loan_repository import (
     SqlAlchemyLoanRepository,
 )
+from modules.loans.presentation.controllers.loan_controller import LoanController
 from modules.notifications.application.use_cases.create_notification import (
     CreateNotificationUseCase,
 )
@@ -248,21 +248,37 @@ def get_transfer_controller(
 
 
 # ---- Loans ----
-def build_create_loan_use_case(session: AsyncSession) -> CreateLoanUseCase:
-    return CreateLoanUseCase(SqlAlchemyLoanRepository(session))
+def build_loan_controller(session: AsyncSession) -> LoanController:
+    return LoanController(
+        SqlAlchemyLoanRepository(session),
+        SqlAlchemyTransactionRepository(session),
+        SqlAlchemyAccountRepository(session),
+        session,
+    )
 
 
-def build_loan_repository(session: AsyncSession) -> SqlAlchemyLoanRepository:
-    return SqlAlchemyLoanRepository(session)
+def get_loan_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> LoanController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_loan_controller(session)
 
 
 # ---- Debts ----
-def build_create_debt_use_case(session: AsyncSession) -> CreateDebtUseCase:
-    return CreateDebtUseCase(SqlAlchemyDebtRepository(session))
+def build_debt_controller(session: AsyncSession) -> DebtController:
+    return DebtController(
+        SqlAlchemyDebtRepository(session),
+        SqlAlchemyTransactionRepository(session),
+        SqlAlchemyAccountRepository(session),
+        session,
+    )
 
 
-def build_debt_repository(session: AsyncSession) -> SqlAlchemyDebtRepository:
-    return SqlAlchemyDebtRepository(session)
+def get_debt_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DebtController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_debt_controller(session)
 
 
 # ---- Recurring Expenses ----

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from shared.errors import ValidationError
 
@@ -24,14 +24,20 @@ class Money:
     currency: str = "PEN"
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "currency", (self.currency or "PEN").upper().strip() or "PEN")
+        object.__setattr__(
+            self, "currency", (self.currency or "PEN").upper().strip() or "PEN"
+        )
         amt = self._coerce(self.amount)
         if amt.is_nan() or amt.is_infinite():
             amt = Decimal("0.00")
         if amt < _MIN_AMOUNT:
-            raise ValidationError(code="MONEY_NEGATIVE", message=f"amount no puede ser negativo: {amt}")
+            raise ValidationError(
+                code="MONEY_NEGATIVE", message=f"amount no puede ser negativo: {amt}"
+            )
         if amt > _MAX_AMOUNT:
-            raise ValidationError(code="MONEY_TOO_LARGE", message=f"amount excede máximo permitido: {amt}")
+            raise ValidationError(
+                code="MONEY_TOO_LARGE", message=f"amount excede máximo permitido: {amt}"
+            )
         # Cuantiza a 2 decimales
         quantized = amt.quantize(_QUANTIZE, rounding=ROUND_HALF_UP)
         object.__setattr__(self, "amount", quantized)
@@ -93,7 +99,10 @@ class Money:
 
     def _assert_same_currency(self, other: Money) -> None:
         if self.currency != other.currency:
-            raise BusinessRuleError(code="CURRENCY_MISMATCH", message=f"currency mismatch {self.currency} vs {other.currency}")  # type: ignore[name-defined]
+            raise BusinessRuleError(
+                code="CURRENCY_MISMATCH",
+                message=f"currency mismatch {self.currency} vs {other.currency}",
+            )  # type: ignore[name-defined]
 
     def __str__(self) -> str:
         return f"{self.amount} {self.currency}"

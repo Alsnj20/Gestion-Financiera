@@ -5,10 +5,8 @@ from typing import Protocol
 
 
 class RefreshSessionRepositoryPort(Protocol):
-    """Persistencia de sesiones refresh (D3: rotación + revocación).
-
-    Solo guarda hashes SHA-256, nunca tokens en claro. La rotación
-    posterior no requerirá cambiar use cases ni controller.
+    """
+    Solo guarda hashes SHA-256, nunca tokens en claro.
     """
 
     async def create(

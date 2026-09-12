@@ -1,86 +1,137 @@
+"""Debt Router — Solo enruta, delega al Controller."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from composition import build_create_debt_use_case, build_debt_repository
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
-from infrastructure.database.session import get_session
-from modules.debts.presentation.schemas import CreateDebtRequestSchema, UpdateDebtRequestSchema, DebtResponseSchema
-from shared.errors import ConflictError, ValidationError
+from fastapi import APIRouter, Depends, status
+
+from composition import get_debt_controller
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
+from modules.debts.application.use_cases.cancel_debt import CancelDebtInput
+from modules.debts.application.use_cases.get_debt import GetDebtInput
+from modules.debts.application.use_cases.list_debts import ListDebtsInput
+from modules.debts.application.use_cases.register_debt_payment import (
+    RegisterDebtPaymentInput,
+)
+from modules.debts.application.use_cases.update_debt import UpdateDebtInput
+from modules.debts.presentation.controllers.debt_controller import DebtController
+from modules.debts.presentation.schemas import (
+    CreateDebtRequestSchema,
+    DebtResponseSchema,
+    RegisterPaymentRequestSchema,
+    RegisterPaymentResponseSchema,
+    UpdateDebtRequestSchema,
+)
 
 router = APIRouter(prefix="/debts", tags=["debts"])
 
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
+DebtCtrl = Annotated[DebtController, Depends(get_debt_controller)]
+
 
 @router.post("", response_model=DebtResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_debt(payload: CreateDebtRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    use_case = build_create_debt_use_case(session)
-    try:
-        input_dto = payload.to_input_dto()
-        input_dto.user_id = current_user["user_id"]
-        result = await use_case.execute(input_dto)
-        await session.commit()
-        return DebtResponseSchema(id=result.id, user_id=result.user_id, creditor_name=result.creditor_name, principal_amount=result.principal_amount, status=result.status)
-    except (ValidationError, ValueError) as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "VALIDATION_ERROR", "message": str(e)}) from e
-    except ConflictError as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": e.code, "message": e.message}) from e
+async def create_debt(
+    payload: CreateDebtRequestSchema,
+    current_user: CurrentUser,
+    controller: DebtCtrl,
+):
+    # user_id sale del JWT, nunca del body.
+    result = await controller.create(
+        payload.to_input_dto(user_id=current_user["user_id"])
+    )
+    return DebtResponseSchema(**result)
 
 
 @router.get("/user/{user_id}", response_model=list[DebtResponseSchema])
-async def list_debts_by_user(user_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-    repo = build_debt_repository(session)
-    debts = await repo.find_by_user(user_id)
-    return [DebtResponseSchema(id=d.id, user_id=d.user_id, creditor_name=d.creditor_name, principal_amount=d.principal_amount, status=d.status.value if hasattr(d.status, "value") else str(d.status)) for d in debts]
+async def list_debts_by_user(
+    user_id: str,
+    current_user: CurrentUser,
+    controller: DebtCtrl,
+):
+    result = await controller.list_by_user(
+        ListDebtsInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
+    )
+    return [DebtResponseSchema(**item) for item in result]
 
 
 @router.get("/{debt_id}", response_model=DebtResponseSchema)
-async def get_debt(debt_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_debt_repository(session)
-    debt = await repo.find_by_id(debt_id)
-    if not debt:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deuda no encontrada")
-    check_ownership(debt, current_user)
-    return DebtResponseSchema(
-        id=debt.id, user_id=debt.user_id, creditor_name=debt.creditor_name,
-        principal_amount=debt.principal_amount,
-        status=debt.status.value if hasattr(debt.status, "value") else str(debt.status),
+async def get_debt(
+    debt_id: str,
+    current_user: CurrentUser,
+    controller: DebtCtrl,
+):
+    result = await controller.get(
+        GetDebtInput(
+            debt_id=debt_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
     )
+    return DebtResponseSchema(**result)
 
 
 @router.put("/{debt_id}", response_model=DebtResponseSchema)
-async def update_debt(debt_id: str, payload: UpdateDebtRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_debt_repository(session)
-    debt = await repo.find_by_id(debt_id)
-    if not debt:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deuda no encontrada")
-    check_ownership(debt, current_user)
-
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(debt, field, value)
-
-    await repo.save(debt)
-    await session.commit()
-
-    return DebtResponseSchema(
-        id=debt.id, user_id=debt.user_id, creditor_name=debt.creditor_name,
-        principal_amount=debt.principal_amount,
-        status=debt.status.value if hasattr(debt.status, "value") else str(debt.status),
+async def update_debt(
+    debt_id: str,
+    payload: UpdateDebtRequestSchema,
+    current_user: ActiveUser,
+    controller: DebtCtrl,
+):
+    """Solo metadatos (creditor_name/notes): el principal no se edita."""
+    result = await controller.update(
+        UpdateDebtInput(
+            debt_id=debt_id,
+            requester_id=current_user["user_id"],
+            creditor_name=payload.creditor_name,
+            notes=payload.notes,
+        )
     )
+    return DebtResponseSchema(**result)
 
 
-@router.delete("/{debt_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_debt(debt_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_debt_repository(session)
-    debt = await repo.find_by_id(debt_id)
-    if not debt:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deuda no encontrada")
-    check_ownership(debt, current_user)
+@router.post("/{debt_id}/cancel", response_model=DebtResponseSchema)
+async def cancel_debt(
+    debt_id: str,
+    current_user: ActiveUser,
+    controller: DebtCtrl,
+):
+    """Anulación lógica: la fila se conserva con CANCELLED, nunca se borra."""
+    result = await controller.cancel(
+        CancelDebtInput(debt_id=debt_id, requester_id=current_user["user_id"])
+    )
+    return DebtResponseSchema(**result)
 
-    await repo.delete(debt_id)
-    await session.commit()
+
+@router.post(
+    "/{debt_id}/payments",
+    response_model=RegisterPaymentResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def register_debt_payment(
+    debt_id: str,
+    payload: RegisterPaymentRequestSchema,
+    current_user: ActiveUser,
+    controller: DebtCtrl,
+):
+    """Registra un pago: EXPENSE de la cuenta + cuota + balance. Cierra en PAID."""
+    result = await controller.register_payment(
+        RegisterDebtPaymentInput(
+            debt_id=debt_id,
+            requester_id=current_user["user_id"],
+            account_id=payload.account_id,
+            installment_id=payload.installment_id,
+            principal_amount=payload.principal_amount,
+            interest_amount=payload.interest_amount,
+            payment_date=payload.payment_date,
+            category_id=payload.category_id,
+            payment_method_id=payload.payment_method_id,
+            description=payload.description,
+        )
+    )
+    return RegisterPaymentResponseSchema(**result)

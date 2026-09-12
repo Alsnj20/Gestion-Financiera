@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
 from datetime import date
-from modules.debts.domain.entities.debt import Debt
+from decimal import Decimal
+
+from modules.debts.application.dtos import CreateDebtOutput, to_debt_output
 from modules.debts.application.ports.debt_repository import DebtRepositoryPort
+from modules.debts.domain.entities.debt import Debt
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,32 +25,28 @@ class CreateDebtInput:
     notes: str = ""
 
 
-@dataclass(frozen=True, slots=True)
-class CreateDebtOutput:
-    id: str
-    user_id: str
-    creditor_name: str
-    principal_amount: Decimal
-    status: str
-
-
 class CreateDebtUseCase:
     def __init__(self, repo: DebtRepositoryPort) -> None:
         self._repo = repo
 
     async def execute(self, inp: CreateDebtInput) -> CreateDebtOutput:
         debt = Debt.create(
-            user_id=inp.user_id, creditor_name=inp.creditor_name,
-            principal_amount=inp.principal_amount, interest_rate=inp.interest_rate,
-            interest_rate_type=inp.interest_rate_type, payment_frequency=inp.payment_frequency,
-            installment_count=inp.installment_count, installment_amount=inp.installment_amount,
-            start_date=inp.start_date, first_due_date=inp.first_due_date,
-            amortization_method=inp.amortization_method, notes=inp.notes,
+            user_id=inp.user_id,
+            creditor_name=inp.creditor_name,
+            principal_amount=inp.principal_amount,
+            interest_rate=inp.interest_rate,
+            interest_rate_type=inp.interest_rate_type,
+            payment_frequency=inp.payment_frequency,
+            installment_count=inp.installment_count,
+            installment_amount=inp.installment_amount,
+            start_date=inp.start_date,
+            first_due_date=inp.first_due_date,
+            amortization_method=inp.amortization_method,
+            notes=inp.notes,
         )
+        # Cronograma al crear (contado = 1 cuota); misma unidad de trabajo.
+        schedule = debt.generate_schedule()
         await self._repo.save(debt)
+        await self._repo.save_installments(schedule)
 
-        return CreateDebtOutput(
-            id=debt.id, user_id=debt.user_id, creditor_name=debt.creditor_name,
-            principal_amount=debt.principal_amount,
-            status=debt.status.value if hasattr(debt.status, "value") else str(debt.status),
-        )
+        return to_debt_output(debt, schedule)
