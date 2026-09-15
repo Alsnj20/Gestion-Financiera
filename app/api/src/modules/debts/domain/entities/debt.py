@@ -141,6 +141,14 @@ class DebtInstallment:
             return self._with(status=InstallmentStatus.OVERDUE)
         return self
 
+    def cancel(self) -> DebtInstallment:
+        """Anulación con el header: lo pagado se respeta, el resto se cancela."""
+        if self.status == InstallmentStatus.PAID:
+            return self
+        if self.status == InstallmentStatus.CANCELLED:
+            return self
+        return self._with(status=InstallmentStatus.CANCELLED)
+
     def _with(self, **kwargs: object) -> DebtInstallment:  # type: ignore[no-untyped-def]
         data: dict[str, object] = {
             "id": self.id,

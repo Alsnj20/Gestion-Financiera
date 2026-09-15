@@ -14,7 +14,10 @@ class CancelLoanInput:
 
 
 class CancelLoanUseCase:
-    """Anulación lógica: la fila se conserva con CANCELLED, nunca se borra."""
+    """Anulación lógica: header CANCELLED + barrido de cuotas pendientes.
+
+    La fila se conserva, nunca se borra. Las cuotas ya PAID se respetan.
+    """
 
     def __init__(self, repo: LoanRepositoryPort) -> None:
         self._repo = repo
@@ -37,5 +40,11 @@ class CancelLoanUseCase:
 
         cancelled = loan.cancel()
         await self._repo.save(cancelled)
+
+        # El cronograma refleja el cierre: pendientes → CANCELLED, PAID intactas.
+        for installment in await self._repo.list_installments(loan.id):
+            updated = installment.cancel()
+            if updated is not installment:
+                await self._repo.save_installment(updated)
 
         return to_loan_output(cancelled)

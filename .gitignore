@@ -4,6 +4,7 @@ docs/
 # app/api/src/modules/users/
 # app/api/src/modules/accounts/
 # app/api/src/modules/transactions/
+# app/api/src/modules/tranfers/
 # app/api/src/modules/categories/
 # app/api/src/modules/budgets/
 # app/api/src/modules/reports/
