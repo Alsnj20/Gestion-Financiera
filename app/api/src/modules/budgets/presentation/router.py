@@ -1,88 +1,121 @@
+"""Budget Router — Solo enruta, delega al Controller."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from composition import build_create_budget_use_case, build_budget_repository
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
-from infrastructure.database.session import get_session
-from modules.budgets.presentation.schemas import CreateBudgetRequestSchema, UpdateBudgetRequestSchema, BudgetResponseSchema
-from shared.errors import ConflictError, ValidationError
+from fastapi import APIRouter, Depends, Query, status
+
+from composition import get_budget_controller
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
+from modules.budgets.application.use_cases.archive_budget import ArchiveBudgetInput
+from modules.budgets.application.use_cases.get_budget import GetBudgetInput
+from modules.budgets.application.use_cases.list_budgets import ListBudgetsInput
+from modules.budgets.application.use_cases.restore_budget import RestoreBudgetInput
+from modules.budgets.application.use_cases.update_budget import UpdateBudgetInput
+from modules.budgets.presentation.controllers.budget_controller import BudgetController
+from modules.budgets.presentation.schemas import (
+    BudgetResponseSchema,
+    CreateBudgetRequestSchema,
+    UpdateBudgetRequestSchema,
+)
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])
 
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
+BudgetCtrl = Annotated[BudgetController, Depends(get_budget_controller)]
 
-@router.post("", response_model=BudgetResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_budget(payload: CreateBudgetRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    use_case = build_create_budget_use_case(session)
-    try:
-        input_dto = payload.to_input_dto()
-        input_dto.user_id = current_user["user_id"]
-        result = await use_case.execute(input_dto)
-        await session.commit()
-        return BudgetResponseSchema(id=result.id, user_id=result.user_id, name=result.name, amount=result.amount, period_start=result.period_start, period_end=result.period_end, category_id=result.category_id, status=result.status)
-    except (ValidationError, ValueError) as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "VALIDATION_ERROR", "message": str(e)}) from e
-    except ConflictError as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": e.code, "message": e.message}) from e
+
+@router.post(
+    "", response_model=BudgetResponseSchema, status_code=status.HTTP_201_CREATED
+)
+async def create_budget(
+    payload: CreateBudgetRequestSchema,
+    current_user: CurrentUser,
+    controller: BudgetCtrl,
+):
+    # user_id sale del JWT, nunca del body.
+    result = await controller.create(
+        payload.to_input_dto(user_id=current_user["user_id"])
+    )
+    return BudgetResponseSchema(**result)
 
 
 @router.get("/user/{user_id}", response_model=list[BudgetResponseSchema])
-async def list_budgets_by_user(user_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-    repo = build_budget_repository(session)
-    budgets = await repo.find_by_user(user_id)
-    return [BudgetResponseSchema(id=b.id, user_id=b.user_id, name=b.name, amount=b.amount, period_start=b.period_start, period_end=b.period_end, category_id=b.category_id, status=b.status.value if hasattr(b.status, "value") else str(b.status)) for b in budgets]
+async def list_budgets_by_user(
+    user_id: str,
+    current_user: CurrentUser,
+    controller: BudgetCtrl,
+    include_archived: bool = Query(default=False),
+):
+    result = await controller.list_by_user(
+        ListBudgetsInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+            include_archived=include_archived,
+        )
+    )
+    return [BudgetResponseSchema(**item) for item in result]
 
 
 @router.get("/{budget_id}", response_model=BudgetResponseSchema)
-async def get_budget(budget_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_budget_repository(session)
-    budget = await repo.find_by_id(budget_id)
-    if not budget:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Presupuesto no encontrado")
-    check_ownership(budget, current_user)
-    return BudgetResponseSchema(
-        id=budget.id, user_id=budget.user_id, name=budget.name, amount=budget.amount,
-        period_start=budget.period_start, period_end=budget.period_end,
-        category_id=budget.category_id,
-        status=budget.status.value if hasattr(budget.status, "value") else str(budget.status),
+async def get_budget(
+    budget_id: str,
+    current_user: CurrentUser,
+    controller: BudgetCtrl,
+):
+    result = await controller.get(
+        GetBudgetInput(
+            budget_id=budget_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
     )
+    return BudgetResponseSchema(**result)
 
 
 @router.put("/{budget_id}", response_model=BudgetResponseSchema)
-async def update_budget(budget_id: str, payload: UpdateBudgetRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_budget_repository(session)
-    budget = await repo.find_by_id(budget_id)
-    if not budget:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Presupuesto no encontrado")
-    check_ownership(budget, current_user)
-
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(budget, field, value)
-
-    await repo.save(budget)
-    await session.commit()
-
-    return BudgetResponseSchema(
-        id=budget.id, user_id=budget.user_id, name=budget.name, amount=budget.amount,
-        period_start=budget.period_start, period_end=budget.period_end,
-        category_id=budget.category_id,
-        status=budget.status.value if hasattr(budget.status, "value") else str(budget.status),
+async def update_budget(
+    budget_id: str,
+    payload: UpdateBudgetRequestSchema,
+    current_user: ActiveUser,
+    controller: BudgetCtrl,
+):
+    result = await controller.update(
+        UpdateBudgetInput(
+            budget_id=budget_id,
+            user_id=current_user["user_id"],
+            name=payload.name,
+            amount=payload.amount,
+            period_start=payload.period_start,
+            period_end=payload.period_end,
+            category_id=payload.category_id,
+        )
     )
+    return BudgetResponseSchema(**result)
 
 
 @router.delete("/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_budget(budget_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_budget_repository(session)
-    budget = await repo.find_by_id(budget_id)
-    if not budget:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Presupuesto no encontrado")
-    check_ownership(budget, current_user)
+async def archive_budget(
+    budget_id: str,
+    current_user: ActiveUser,
+    controller: BudgetCtrl,
+):
+    """Archivado lógico; nunca borrado físico."""
+    await controller.archive(
+        ArchiveBudgetInput(budget_id=budget_id, user_id=current_user["user_id"])
+    )
 
-    await repo.delete(budget_id)
-    await session.commit()
+
+@router.post("/{budget_id}/restore", response_model=BudgetResponseSchema)
+async def restore_budget(
+    budget_id: str,
+    current_user: ActiveUser,
+    controller: BudgetCtrl,
+):
+    result = await controller.restore(
+        RestoreBudgetInput(budget_id=budget_id, user_id=current_user["user_id"])
+    )
+    return BudgetResponseSchema(**result)

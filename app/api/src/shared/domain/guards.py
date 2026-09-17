@@ -1,14 +1,13 @@
-"""Guards genéricos de dominio — normalización/validación reutilizable.
-
-Extraído de `modules/accounts/domain/entities/account.py` para que
-tags/categories/etc. no dupliquen `_clean_str/_validate_bool`.
-"""
+"""Guards genéricos de dominio — normalización/validación reutilizable."""
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, date, datetime
 
 from shared.errors import ValidationError
+
+SHADOW_SUFFIX_RE = re.compile(r"_deleted_[0-9a-f]{8}$")
 
 
 def utcnow() -> datetime:
@@ -58,3 +57,16 @@ def safe_date(value: object, default: date | None = None) -> date:
         except ValueError:
             pass
     return default or today()
+
+
+def shadow_original_name(name: str) -> str:
+    """Quita el sufijo de borrado lógico (`_deleted_{id8}`)."""
+    return SHADOW_SUFFIX_RE.sub("", name)
+
+
+def shadow_name(name: str, ref_id: str, max_len: int, fallback: str = "item") -> str:
+    """Borrado lógico visible: `{nombre}_deleted_{id8}`, libera el original."""
+    frag = (clean_str(ref_id).replace("-", "")[:8] or "00000000").lower()
+    suffix = f"_deleted_{frag}"
+    base = clean_str(name)[: max_len - len(suffix)].rstrip() or fallback
+    return f"{base}{suffix}"

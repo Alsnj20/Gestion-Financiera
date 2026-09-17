@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
+from shared.domain.guards import SHADOW_SUFFIX_RE
 from shared.domain.guards import clean_str as _clean_str
+from shared.domain.guards import shadow_name as _shadow_name
+from shared.domain.guards import shadow_original_name
 from shared.domain.guards import utcnow as _utcnow
 from shared.domain.guards import validate_bool as _validate_bool
 from shared.domain.value_objects.money import Money
@@ -14,7 +16,6 @@ from shared.errors import BusinessRuleError, ValidationError
 from shared.types.enums import AccountStatus, AccountType
 
 MAX_NAME_LEN = 80
-SHADOW_SUFFIX_RE = re.compile(r"_deleted_[0-9a-f]{8}$")
 
 
 # ---- Helper functions ----
@@ -27,11 +28,6 @@ def _validate_name(name: str) -> str:
             code="ACCOUNT_NAME_TOO_LONG", message=f"name excede {MAX_NAME_LEN}"
         )
     return name
-
-
-def shadow_original_name(name: str) -> str:
-    """Remove the shadow suffix from the account name if it exists, returning the original name."""
-    return SHADOW_SUFFIX_RE.sub("", name)
 
 
 @dataclass(slots=True, frozen=True)
@@ -247,10 +243,8 @@ class Account:
     def archive_with_shadow_name(self) -> Account:
         """Borrado lógico visible: archiva, desmarca default y renombra a
         '{nombre}_deleted_{id8}' para liberar el nombre original."""
-        frag = (self.id.replace("-", "")[:8] or "00000000").lower()
-        suffix = f"_deleted_{frag}"
-        base = self.name[: MAX_NAME_LEN - len(suffix)].rstrip() or "cuenta"
-        return self.archive()._with(name=f"{base}{suffix}", is_default=False)
+        shadowed = _shadow_name(self.name, self.id, MAX_NAME_LEN, fallback="cuenta")
+        return self.archive()._with(name=shadowed, is_default=False)
 
     def restore(self, name: str) -> Account:
         if self.status != AccountStatus.ARCHIVED:

@@ -1,78 +1,101 @@
+"""Tag Router — Solo enruta, delega al Controller."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from composition import build_create_tag_use_case, build_tag_repository
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
-from infrastructure.database.session import get_session
-from modules.tags.presentation.schemas import CreateTagRequestSchema, UpdateTagRequestSchema, TagResponseSchema
-from shared.errors import ConflictError, ValidationError
+from fastapi import APIRouter, Depends, status
+
+from composition import get_tag_controller
+from modules.auth.presentation.dependencies import get_current_user, require_active_user
+from modules.tags.application.use_cases.create_tag import CreateTagInput
+from modules.tags.application.use_cases.delete_tag import DeleteTagInput
+from modules.tags.application.use_cases.get_tag import GetTagInput
+from modules.tags.application.use_cases.list_tags import ListTagsInput
+from modules.tags.application.use_cases.update_tag import UpdateTagInput
+from modules.tags.presentation.controllers.tag_controller import TagController
+from modules.tags.presentation.schemas import (
+    CreateTagRequestSchema,
+    TagResponseSchema,
+    UpdateTagRequestSchema,
+)
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+ActiveUser = Annotated[dict, Depends(require_active_user)]
+TagCtrl = Annotated[TagController, Depends(get_tag_controller)]
+
 
 @router.post("", response_model=TagResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_tag(payload: CreateTagRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    use_case = build_create_tag_use_case(session)
-    try:
-        input_dto = payload.to_input_dto()
-        input_dto.user_id = current_user["user_id"]
-        result = await use_case.execute(input_dto)
-        await session.commit()
-        return TagResponseSchema(id=result.id, user_id=result.user_id, name=result.name)
-    except (ValidationError, ValueError) as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "VALIDATION_ERROR", "message": str(e)}) from e
-    except ConflictError as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": e.code, "message": e.message}) from e
+async def create_tag(
+    payload: CreateTagRequestSchema,
+    current_user: CurrentUser,
+    controller: TagCtrl,
+):
+    # user_id sale del JWT, nunca del body.
+    result = await controller.create(
+        CreateTagInput(user_id=current_user["user_id"], name=payload.name)
+    )
+    return TagResponseSchema(**result)
 
 
 @router.get("/user/{user_id}", response_model=list[TagResponseSchema])
-async def list_tags_by_user(user_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-    repo = build_tag_repository(session)
-    tags = await repo.find_by_user(user_id)
-    return [TagResponseSchema(id=t.id, user_id=t.user_id, name=t.name) for t in tags]
+async def list_tags_by_user(
+    user_id: str,
+    current_user: CurrentUser,
+    controller: TagCtrl,
+):
+    result = await controller.list_by_user(
+        ListTagsInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
+    )
+    return [TagResponseSchema(**item) for item in result]
 
 
 @router.get("/{tag_id}", response_model=TagResponseSchema)
-async def get_tag(tag_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_tag_repository(session)
-    tag = await repo.find_by_id(tag_id)
-    if not tag:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag no encontrado")
-    check_ownership(tag, current_user)
-    return TagResponseSchema(id=tag.id, user_id=tag.user_id, name=tag.name)
+async def get_tag(
+    tag_id: str,
+    current_user: CurrentUser,
+    controller: TagCtrl,
+):
+    result = await controller.get(
+        GetTagInput(
+            tag_id=tag_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
+    )
+    return TagResponseSchema(**result)
 
 
 @router.put("/{tag_id}", response_model=TagResponseSchema)
-async def update_tag(tag_id: str, payload: UpdateTagRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_tag_repository(session)
-    tag = await repo.find_by_id(tag_id)
-    if not tag:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag no encontrado")
-    check_ownership(tag, current_user)
-
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(tag, field, value)
-
-    await repo.save(tag)
-    await session.commit()
-
-    return TagResponseSchema(id=tag.id, user_id=tag.user_id, name=tag.name)
+async def update_tag(
+    tag_id: str,
+    payload: UpdateTagRequestSchema,
+    current_user: ActiveUser,
+    controller: TagCtrl,
+):
+    result = await controller.update(
+        UpdateTagInput(
+            tag_id=tag_id,
+            user_id=current_user["user_id"],
+            name=payload.name,
+        )
+    )
+    return TagResponseSchema(**result)
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tag(tag_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    repo = build_tag_repository(session)
-    tag = await repo.find_by_id(tag_id)
-    if not tag:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag no encontrado")
-    check_ownership(tag, current_user)
-
-    await repo.delete(tag_id)
-    await session.commit()
+async def delete_tag(
+    tag_id: str,
+    current_user: ActiveUser,
+    controller: TagCtrl,
+):
+    """Borrado físico: tags sin historial; asociaciones caen en cascada."""
+    await controller.delete(
+        DeleteTagInput(tag_id=tag_id, user_id=current_user["user_id"])
+    )

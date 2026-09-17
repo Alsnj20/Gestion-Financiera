@@ -1,16 +1,17 @@
 from __future__ import annotations
-from shared.utils.uuids import is_uuid as _is_uuid
 
 import uuid
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infrastructure.database.mappers.tag_mapper import to_domain, to_model
 from infrastructure.database.models import TagModel
-from modules.tags.domain.entities.tag import Tag
 from modules.tags.application.ports.tag_repository import TagRepositoryPort
-from shared.errors import ConflictError
+from modules.tags.domain.entities.tag import Tag, normalize_tag_name
+from modules.tags.infrastructure.mappers.tag_mapper import to_domain, to_model
+from shared.errors import ConflictError, ValidationError
+from shared.utils.uuids import is_uuid as _is_uuid
 
 
 class SqlAlchemyTagRepository(TagRepositoryPort):
@@ -18,7 +19,9 @@ class SqlAlchemyTagRepository(TagRepositoryPort):
         self._session = session
 
     async def save(self, tag: Tag) -> None:
-        existing = await self._session.get(TagModel, uuid.UUID(tag.id) if _is_uuid(tag.id) else None)
+        if not _is_uuid(tag.id):
+            raise ValidationError(code="TAG_ID_REQUIRED", message="id requerido")
+        existing = await self._session.get(TagModel, uuid.UUID(tag.id))
         if existing:
             existing.name = tag.name
         else:
@@ -26,13 +29,18 @@ class SqlAlchemyTagRepository(TagRepositoryPort):
         try:
             await self._session.flush()
         except IntegrityError as e:
-            await self._session.rollback()
-            raise ConflictError(code="TAG_NAME_TAKEN", message=f"Tag ya existe: {tag.name}") from e
+            raise ConflictError(
+                code="TAG_NAME_TAKEN", message=f"Tag ya existe: {tag.name}"
+            ) from e
 
-    async def find_by_id(self, tag_id: str) -> Tag | None:
+    async def find_by_id(self, tag_id: str, *, for_update: bool = False) -> Tag | None:
         if not _is_uuid(tag_id):
             return None
-        model = await self._session.get(TagModel, uuid.UUID(tag_id))
+        model = await self._session.get(
+            TagModel,
+            uuid.UUID(tag_id),
+            with_for_update=True if for_update else None,
+        )
         return to_domain(model) if model else None
 
     async def find_by_user(self, user_id: str) -> list[Tag]:
@@ -45,16 +53,25 @@ class SqlAlchemyTagRepository(TagRepositoryPort):
     async def exists_name_for_user(self, user_id: str, name: str) -> bool:
         if not _is_uuid(user_id):
             return False
-        stmt = select(TagModel.id).where(TagModel.user_id == uuid.UUID(user_id), TagModel.name == name.strip().lower()).limit(1)
+        # Misma normalización que la entidad (lower + sin #).
+        normalized = normalize_tag_name(name)
+        if not normalized:
+            return False
+        stmt = (
+            select(TagModel.id)
+            .where(
+                TagModel.user_id == uuid.UUID(user_id),
+                TagModel.name == normalized,
+            )
+            .limit(1)
+        )
         result = await self._session.execute(stmt)
         return result.scalars().first() is not None
 
-    async def delete(self, entity_id: str) -> None:
-        import uuid
-        if not _is_uuid(entity_id):
+    async def delete(self, tag_id: str) -> None:
+        if not _is_uuid(tag_id):
             return
-        model = await self._session.get(TagModel, uuid.UUID(entity_id))
+        model = await self._session.get(TagModel, uuid.UUID(tag_id))
         if model:
             await self._session.delete(model)
             await self._session.flush()
-
