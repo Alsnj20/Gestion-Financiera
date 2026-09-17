@@ -181,6 +181,17 @@ class BudgetStatus(StrEnum):
         return _safe_enum(value, cls, cls.ACTIVE)
 
 
+# --- Recurring ---
+class RecurringStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    CANCELLED = "CANCELLED"
+
+    @classmethod
+    def safe(cls, value: object) -> RecurringStatus:
+        return _safe_enum(value, cls, cls.ACTIVE)
+
+
 # --- Notifications / Messages / Audit ---
 class NotificationStatus(StrEnum):
     PENDING = "PENDING"

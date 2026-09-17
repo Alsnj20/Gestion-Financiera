@@ -1,23 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from modules.audit_logs.domain.entities.audit_log import AuditLog
-from modules.audit_logs.application.ports.audit_log_repository import AuditLogRepositoryPort
+
+from modules.audit_logs.application.dtos import ListAuditLogsOutput, to_audit_log_output
+from modules.audit_logs.application.ports.audit_log_repository import (
+    AuditLogRepositoryPort,
+)
+from shared.errors import BusinessRuleError
 
 
 @dataclass(frozen=True, slots=True)
 class ListAuditLogsInput:
     user_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class ListAuditLogsOutput:
-    id: str
-    user_id: str
-    entity_type: str
-    entity_id: str
-    action: str
-    source: str
+    requester_id: str
+    requester_role: str = "USER"
 
 
 class ListAuditLogsUseCase:
@@ -25,15 +21,12 @@ class ListAuditLogsUseCase:
         self._repo = repo
 
     async def execute(self, inp: ListAuditLogsInput) -> list[ListAuditLogsOutput]:
-        items = await self._repo.find_by_user(inp.user_id)
-        return [
-            ListAuditLogsOutput(
-                id=l.id,
-                user_id=l.user_id,
-                entity_type=l.entity_type,
-                entity_id=l.entity_id,
-                action=l.action,
-                source=l.source,
+        # Lectura: dueño o admin.
+        if inp.user_id != inp.requester_id and inp.requester_role != "ADMIN":
+            raise BusinessRuleError(
+                code="FORBIDDEN",
+                message="No autorizado",
             )
-            for l in items
-        ]
+
+        items = await self._repo.find_by_user(inp.user_id)
+        return [to_audit_log_output(log) for log in items]

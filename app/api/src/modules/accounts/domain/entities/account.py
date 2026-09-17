@@ -5,10 +5,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
-from shared.domain.guards import SHADOW_SUFFIX_RE
 from shared.domain.guards import clean_str as _clean_str
 from shared.domain.guards import shadow_name as _shadow_name
-from shared.domain.guards import shadow_original_name
 from shared.domain.guards import utcnow as _utcnow
 from shared.domain.guards import validate_bool as _validate_bool
 from shared.domain.value_objects.money import Money

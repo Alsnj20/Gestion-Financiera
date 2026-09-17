@@ -1,41 +1,37 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from modules.conversations.domain.entities.conversation_message import ConversationMessage
-from modules.conversations.application.ports.conversation_message_repository import ConversationMessageRepositoryPort
+
+from modules.conversations.application.dtos import (
+    ListConversationMessagesOutput,
+    to_conversation_message_output,
+)
+from modules.conversations.application.ports.conversation_message_repository import (
+    ConversationMessageRepositoryPort,
+)
+from shared.errors import BusinessRuleError
 
 
 @dataclass(frozen=True, slots=True)
 class ListConversationMessagesInput:
     user_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class ListConversationMessagesOutput:
-    id: str
-    user_id: str
-    channel: str
-    external_message_id: str
-    direction: str
-    content: str
-    parsed_intent: str
+    requester_id: str
+    requester_role: str = "USER"
 
 
 class ListConversationMessagesUseCase:
     def __init__(self, repo: ConversationMessageRepositoryPort) -> None:
         self._repo = repo
 
-    async def execute(self, inp: ListConversationMessagesInput) -> list[ListConversationMessagesOutput]:
-        items = await self._repo.find_by_user(inp.user_id)
-        return [
-            ListConversationMessagesOutput(
-                id=m.id,
-                user_id=m.user_id,
-                channel=m.channel.value if hasattr(m.channel, "value") else str(m.channel),
-                external_message_id=m.external_message_id,
-                direction=m.direction.value if hasattr(m.direction, "value") else str(m.direction),
-                content=m.content,
-                parsed_intent=m.parsed_intent,
+    async def execute(
+        self, inp: ListConversationMessagesInput
+    ) -> list[ListConversationMessagesOutput]:
+        # Lectura: dueño o admin.
+        if inp.user_id != inp.requester_id and inp.requester_role != "ADMIN":
+            raise BusinessRuleError(
+                code="FORBIDDEN",
+                message="No autorizado",
             )
-            for m in items
-        ]
+
+        items = await self._repo.find_by_user(inp.user_id)
+        return [to_conversation_message_output(m) for m in items]

@@ -1,22 +1,26 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
 from datetime import date
-from typing import Optional
-from modules.recurring_expenses.application.use_cases.create_recurring_expense import CreateRecurringExpenseInput
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+from modules.recurring_expenses.application.use_cases.create_recurring_expense import (
+    CreateRecurringExpenseInput,
+)
 
 
 class CreateRecurringExpenseRequestSchema(BaseModel):
-    account_id: str = Field(..., min_length=1)
-    amount: float = Field(..., gt=0)
+    account_id: str = Field(min_length=1)
+    amount: Decimal = Field(gt=0)
     frequency: str = Field(default="MONTHLY", max_length=20)
     next_date: date
     description: str = Field(default="", max_length=500)
     category_id: str = Field(default="", max_length=80)
 
-    def to_input_dto(self) -> CreateRecurringExpenseInput:
+    def to_input_dto(self, user_id: str) -> CreateRecurringExpenseInput:
         return CreateRecurringExpenseInput(
-            user_id="",
+            user_id=user_id,
             account_id=self.account_id,
             amount=self.amount,
             frequency=self.frequency,
@@ -27,11 +31,13 @@ class CreateRecurringExpenseRequestSchema(BaseModel):
 
 
 class UpdateRecurringExpenseRequestSchema(BaseModel):
-    amount: Optional[float] = Field(default=None, gt=0)
-    frequency: Optional[str] = Field(default=None, max_length=20)
-    next_date: Optional[date] = Field(default=None)
-    description: Optional[str] = Field(default=None, max_length=500)
-    status: Optional[str] = Field(default=None, max_length=20)
+    """Solo metadatos: el status cambia por pause/resume/cancel."""
+
+    amount: Decimal | None = Field(default=None, gt=0)
+    frequency: str | None = Field(default=None, max_length=20)
+    next_date: date | None = Field(default=None)
+    description: str | None = Field(default=None, max_length=500)
+    category_id: str | None = Field(default=None, max_length=80)
 
 
 class RecurringExpenseResponseSchema(BaseModel):
@@ -39,8 +45,8 @@ class RecurringExpenseResponseSchema(BaseModel):
     user_id: str
     account_id: str
     category_id: str
-    amount: str
+    amount: Decimal
     frequency: str
-    next_date: str
+    next_date: date
     description: str
     status: str

@@ -1,18 +1,23 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
-from modules.audit_logs.application.use_cases.create_audit_log import CreateAuditLogInput
+
+from modules.audit_logs.application.use_cases.create_audit_log import (
+    CreateAuditLogInput,
+)
 
 
 class CreateAuditLogRequestSchema(BaseModel):
-    entity_type: str = Field(..., min_length=1, max_length=40)
-    entity_id: str = Field(..., min_length=1, max_length=80)
-    action: str = Field(..., min_length=1, max_length=20)
+    entity_type: str = Field(min_length=1, max_length=40)
+    entity_id: str = Field(min_length=1, max_length=80)
+    action: str = Field(min_length=1, max_length=20)
     old_value: dict | None = None
     new_value: dict | None = None
     source: str = Field(default="MANUAL", max_length=20)
 
-    def to_input_dto(self) -> CreateAuditLogInput:
+    def to_input_dto(self, user_id: str) -> CreateAuditLogInput:
         return CreateAuditLogInput(
-            user_id="",
+            user_id=user_id,
             entity_type=self.entity_type,
             entity_id=self.entity_id,
             action=self.action,

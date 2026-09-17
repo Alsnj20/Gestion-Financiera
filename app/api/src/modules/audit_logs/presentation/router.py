@@ -1,47 +1,54 @@
+"""AuditLog Router — Solo enruta, delega al Controller (append-only)."""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Annotated
 
-from composition import build_create_audit_log_use_case, build_audit_log_repository
-from modules.auth.presentation.dependencies import get_current_user, check_ownership
-from infrastructure.database.session import get_session
-from modules.audit_logs.presentation.schemas import CreateAuditLogRequestSchema, AuditLogResponseSchema
-from shared.errors import ConflictError, ValidationError
+from fastapi import APIRouter, Depends, status
+
+from composition import get_audit_log_controller
+from modules.audit_logs.application.use_cases.list_audit_logs import ListAuditLogsInput
+from modules.audit_logs.presentation.controllers.audit_log_controller import (
+    AuditLogController,
+)
+from modules.audit_logs.presentation.schemas import (
+    AuditLogResponseSchema,
+    CreateAuditLogRequestSchema,
+)
+from modules.auth.presentation.dependencies import get_current_user
 
 router = APIRouter(prefix="/audit-logs", tags=["audit-logs"])
 
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+AuditLogCtrl = Annotated[AuditLogController, Depends(get_audit_log_controller)]
 
-@router.post("", response_model=AuditLogResponseSchema, status_code=status.HTTP_201_CREATED)
-async def create_audit_log(payload: CreateAuditLogRequestSchema, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    use_case = build_create_audit_log_use_case(session)
-    try:
-        input_dto = payload.to_input_dto()
-        input_dto.user_id = current_user["user_id"]
-        result = await use_case.execute(input_dto)
-        await session.commit()
-        return AuditLogResponseSchema(
-            id=result.id, user_id=result.user_id, entity_type=result.entity_type,
-            entity_id=result.entity_id, action=result.action, source=result.source,
-        )
-    except (ValidationError, ValueError) as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "VALIDATION_ERROR", "message": str(e)}) from e
-    except ConflictError as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": e.code, "message": e.message}) from e
+
+@router.post(
+    "", response_model=AuditLogResponseSchema, status_code=status.HTTP_201_CREATED
+)
+async def create_audit_log(
+    payload: CreateAuditLogRequestSchema,
+    current_user: CurrentUser,
+    controller: AuditLogCtrl,
+):
+    # user_id sale del JWT, nunca del body.
+    result = await controller.create(
+        payload.to_input_dto(user_id=current_user["user_id"])
+    )
+    return AuditLogResponseSchema(**result)
 
 
 @router.get("/user/{user_id}", response_model=list[AuditLogResponseSchema])
-async def list_audit_logs_by_user(user_id: str, session: AsyncSession = Depends(get_session), current_user: dict = Depends(get_current_user)):
-    if user_id != current_user["user_id"] and current_user["role"] != "ADMIN":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
-    repo = build_audit_log_repository(session)
-    items = await repo.find_by_user(user_id)
-    return [
-        AuditLogResponseSchema(
-            id=l.id, user_id=l.user_id, entity_type=l.entity_type,
-            entity_id=l.entity_id, action=l.action, source=l.source,
+async def list_audit_logs_by_user(
+    user_id: str,
+    current_user: CurrentUser,
+    controller: AuditLogCtrl,
+):
+    result = await controller.list_by_user(
+        ListAuditLogsInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
         )
-        for l in items
-    ]
+    )
+    return [AuditLogResponseSchema(**item) for item in result]

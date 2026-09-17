@@ -6,7 +6,7 @@ from modules.accounts.application.dtos import RestoreAccountOutput, to_account_o
 from modules.accounts.application.ports.account_repository import (
     AccountRepositoryPort,
 )
-from modules.accounts.domain.entities.account import shadow_original_name
+from shared.domain.guards import shadow_original_name
 from shared.errors import BusinessRuleError, ConflictError, NotFoundError
 from shared.types.enums import AccountStatus
 

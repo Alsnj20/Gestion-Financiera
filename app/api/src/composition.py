@@ -12,11 +12,11 @@ from modules.accounts.infrastructure.adapters.sqlalchemy_account_repository impo
 from modules.accounts.presentation.controllers.account_controller import (
     AccountController,
 )
-from modules.audit_logs.application.use_cases.create_audit_log import (
-    CreateAuditLogUseCase,
-)
 from modules.audit_logs.infrastructure.adapters.sqlalchemy_audit_log_repository import (
     SqlAlchemyAuditLogRepository,
+)
+from modules.audit_logs.presentation.controllers.audit_log_controller import (
+    AuditLogController,
 )
 from modules.auth.infrastructure.adapters.sqlalchemy_otp_repository import (
     SqlAlchemyOtpRepository,
@@ -39,11 +39,11 @@ from modules.categories.infrastructure.adapters.sqlalchemy_category_repository i
 from modules.categories.presentation.controllers.category_controller import (
     CategoryController,
 )
-from modules.conversations.application.use_cases.create_conversation_message import (
-    CreateConversationMessageUseCase,
-)
 from modules.conversations.infrastructure.adapters.sqlalchemy_conversation_message_repository import (
     SqlAlchemyConversationMessageRepository,
+)
+from modules.conversations.presentation.controllers.conversation_message_controller import (
+    ConversationMessageController,
 )
 from modules.debts.infrastructure.adapters.sqlalchemy_debt_repository import (
     SqlAlchemyDebtRepository,
@@ -57,23 +57,23 @@ from modules.loans.infrastructure.adapters.sqlalchemy_loan_repository import (
     SqlAlchemyLoanRepository,
 )
 from modules.loans.presentation.controllers.loan_controller import LoanController
-from modules.notifications.application.use_cases.create_notification import (
-    CreateNotificationUseCase,
-)
 from modules.notifications.infrastructure.adapters.sqlalchemy_notification_repository import (
     SqlAlchemyNotificationRepository,
 )
-from modules.payment_methods.application.use_cases.create_payment_method import (
-    CreatePaymentMethodUseCase,
+from modules.notifications.presentation.controllers.notification_controller import (
+    NotificationController,
 )
 from modules.payment_methods.infrastructure.adapters.sqlalchemy_payment_method_repository import (
     SqlAlchemyPaymentMethodRepository,
 )
-from modules.recurring_expenses.application.use_cases.create_recurring_expense import (
-    CreateRecurringExpenseUseCase,
+from modules.payment_methods.presentation.controllers.payment_method_controller import (
+    PaymentMethodController,
 )
 from modules.recurring_expenses.infrastructure.adapters.sqlalchemy_recurring_expense_repository import (
     SqlAlchemyRecurringExpenseRepository,
+)
+from modules.recurring_expenses.presentation.controllers.recurring_expense_controller import (
+    RecurringExpenseController,
 )
 from modules.tags.infrastructure.adapters.sqlalchemy_tag_repository import (
     SqlAlchemyTagRepository,
@@ -193,16 +193,19 @@ def get_tag_controller(
 
 
 # ---- Payment Methods ----
-def build_create_payment_method_use_case(
-    session: AsyncSession,
-) -> CreatePaymentMethodUseCase:
-    return CreatePaymentMethodUseCase(SqlAlchemyPaymentMethodRepository(session))
+def build_payment_method_controller(session: AsyncSession) -> PaymentMethodController:
+    return PaymentMethodController(
+        SqlAlchemyPaymentMethodRepository(session),
+        SqlAlchemyAccountRepository(session),
+        session,
+    )
 
 
-def build_payment_method_repository(
-    session: AsyncSession,
-) -> SqlAlchemyPaymentMethodRepository:
-    return SqlAlchemyPaymentMethodRepository(session)
+def get_payment_method_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> PaymentMethodController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_payment_method_controller(session)
 
 
 # ---- Budgets ----
@@ -238,16 +241,15 @@ def get_limit_controller(
 
 
 # ---- Notifications ----
-def build_create_notification_use_case(
-    session: AsyncSession,
-) -> CreateNotificationUseCase:
-    return CreateNotificationUseCase(SqlAlchemyNotificationRepository(session))
+def build_notification_controller(session: AsyncSession) -> NotificationController:
+    return NotificationController(SqlAlchemyNotificationRepository(session), session)
 
 
-def build_notification_repository(
-    session: AsyncSession,
-) -> SqlAlchemyNotificationRepository:
-    return SqlAlchemyNotificationRepository(session)
+def get_notification_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> NotificationController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_notification_controller(session)
 
 
 # ---- Transfers ----
@@ -302,37 +304,47 @@ def get_debt_controller(
 
 
 # ---- Recurring Expenses ----
-def build_create_recurring_expense_use_case(
+def build_recurring_expense_controller(
     session: AsyncSession,
-) -> CreateRecurringExpenseUseCase:
-    return CreateRecurringExpenseUseCase(SqlAlchemyRecurringExpenseRepository(session))
-
-
-def build_recurring_expense_repository(
-    session: AsyncSession,
-) -> SqlAlchemyRecurringExpenseRepository:
-    return SqlAlchemyRecurringExpenseRepository(session)
-
-
-# ---- Audit Logs ----
-def build_create_audit_log_use_case(session: AsyncSession) -> CreateAuditLogUseCase:
-    return CreateAuditLogUseCase(SqlAlchemyAuditLogRepository(session))
-
-
-def build_audit_log_repository(session: AsyncSession) -> SqlAlchemyAuditLogRepository:
-    return SqlAlchemyAuditLogRepository(session)
-
-
-# ---- Conversations ----
-def build_create_conversation_message_use_case(
-    session: AsyncSession,
-) -> CreateConversationMessageUseCase:
-    return CreateConversationMessageUseCase(
-        SqlAlchemyConversationMessageRepository(session)
+) -> RecurringExpenseController:
+    return RecurringExpenseController(
+        SqlAlchemyRecurringExpenseRepository(session),
+        SqlAlchemyAccountRepository(session),
+        SqlAlchemyCategoryRepository(session),
+        session,
     )
 
 
-def build_conversation_message_repository(
+def get_recurring_expense_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> RecurringExpenseController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_recurring_expense_controller(session)
+
+
+# ---- Audit Logs ----
+def build_audit_log_controller(session: AsyncSession) -> AuditLogController:
+    return AuditLogController(SqlAlchemyAuditLogRepository(session), session)
+
+
+def get_audit_log_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuditLogController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_audit_log_controller(session)
+
+
+# ---- Conversations ----
+def build_conversation_message_controller(
     session: AsyncSession,
-) -> SqlAlchemyConversationMessageRepository:
-    return SqlAlchemyConversationMessageRepository(session)
+) -> ConversationMessageController:
+    return ConversationMessageController(
+        SqlAlchemyConversationMessageRepository(session), session
+    )
+
+
+def get_conversation_message_controller(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ConversationMessageController:
+    """Dependencia FastAPI — inyecta el controller sin acoplar el router a infra."""
+    return build_conversation_message_controller(session)
