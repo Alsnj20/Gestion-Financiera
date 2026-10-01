@@ -201,6 +201,12 @@ class CategoryModel(Base):
     type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="BOTH", server_default="BOTH"
     )
+    icon: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="", server_default=""
+    )
+    color: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="", server_default=""
+    )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="ACTIVE", server_default="ACTIVE"
     )
@@ -263,7 +269,7 @@ class TransactionModel(Base):
     transaction_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, index=True
     )
-    description: Mapped[str] = mapped_column(
+    concepto: Mapped[str] = mapped_column(
         Text, nullable=False, default="", server_default=""
     )
     category_id: Mapped[uuid.UUID | None] = mapped_column(

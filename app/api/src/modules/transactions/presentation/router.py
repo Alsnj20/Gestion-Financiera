@@ -99,7 +99,7 @@ async def update_transaction(
     current_user: ActiveUser,
     controller: TxCtrl,
 ):
-    """Solo metadatos (description/category/payment_method).
+    """Solo metadatos (concepto/category/payment_method).
 
     amount/type/account_id son inmutables: para corregir un monto se
     cancela y se recrea, así el balance nunca se descuadra.
@@ -109,7 +109,7 @@ async def update_transaction(
             tx_id=tx_id,
             requester_id=current_user["user_id"],
             requester_role=current_user.get("role", "USER"),
-            description=payload.description,
+            concepto=payload.concepto,
             category_id=payload.category_id,
             payment_method_id=payload.payment_method_id,
         )

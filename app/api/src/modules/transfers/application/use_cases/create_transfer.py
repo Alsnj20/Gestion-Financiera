@@ -85,7 +85,7 @@ class CreateTransferUseCase:
             account_id=inp.source_account_id,
             amount=inp.amount,
             currency=source_account.currency,
-            description=f"Transferencia a {dest_account.name}",
+            concepto=f"Transferencia a {dest_account.name}",
             source=TransactionSource.TRANSFER,
         )
         tx_in = Transaction.create_income(
@@ -93,7 +93,7 @@ class CreateTransferUseCase:
             account_id=inp.destination_account_id,
             amount=inp.amount,
             currency=dest_account.currency,
-            description=f"Transferencia desde {source_account.name}",
+            concepto=f"Transferencia desde {source_account.name}",
             source=TransactionSource.TRANSFER,
         )
         transfer = Transfer.create(

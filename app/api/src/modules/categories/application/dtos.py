@@ -17,6 +17,8 @@ class CategoryOutput:
     name: str
     type: str
     parent_id: str
+    icon: str
+    color: str
     status: str
 
 
@@ -27,6 +29,8 @@ def to_category_output(category: Category) -> CategoryOutput:
         name=category.name,
         type=category.type.value,
         parent_id=category.parent_id,
+        icon=category.icon,
+        color=category.color,
         status=category.status.value,
     )
 

@@ -21,6 +21,8 @@ def to_domain(model: CategoryModel) -> Category:
         name=getattr(model, "name", ""),
         type=getattr(model, "type", "BOTH"),
         parent_id=str(model.parent_id) if model.parent_id else "",
+        icon=getattr(model, "icon", "") or "",
+        color=getattr(model, "color", "") or "",
         status=getattr(model, "status", "ACTIVE"),
         created_at=getattr(model, "created_at", None),
         updated_at=getattr(model, "updated_at", None),
@@ -41,6 +43,8 @@ def to_model(domain: Category) -> CategoryModel:
         parent_id=uuid.UUID(domain.parent_id)
         if domain.parent_id and _is_uuid(domain.parent_id)
         else None,
+        icon=domain.icon or "",
+        color=domain.color or "",
         status=domain.status.value
         if hasattr(domain.status, "value")
         else str(domain.status),

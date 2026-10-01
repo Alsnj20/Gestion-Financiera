@@ -16,6 +16,8 @@ class CreateCategoryInput:
     name: str
     type: str = "BOTH"
     parent_id: str = ""
+    icon: str = ""
+    color: str = ""
 
 
 async def _resolve_parent(
@@ -73,7 +75,12 @@ class CreateCategoryUseCase:
             )
 
         category = Category.create(
-            user_id=inp.user_id, name=inp.name, type=inp.type, parent_id=parent_id
+            user_id=inp.user_id,
+            name=inp.name,
+            type=inp.type,
+            parent_id=parent_id,
+            icon=inp.icon,
+            color=inp.color,
         )
         await self._repo.save(category)
 

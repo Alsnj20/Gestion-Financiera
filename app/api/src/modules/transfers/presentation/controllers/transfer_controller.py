@@ -24,6 +24,10 @@ from modules.transfers.application.use_cases.get_transfer import (
     GetTransferInput,
     GetTransferUseCase,
 )
+from modules.transfers.application.use_cases.list_transfers import (
+    ListTransfersInput,
+    ListTransfersUseCase,
+)
 from modules.transfers.application.use_cases.reverse_transfer import (
     ReverseTransferInput,
     ReverseTransferUseCase,
@@ -96,6 +100,12 @@ class TransferController:
             lambda: GetTransferUseCase(self._transfer_repo).execute(inp)
         )
         return asdict(result)
+
+    async def list_by_user(self, inp: ListTransfersInput) -> list[dict]:
+        result = await self._run_read(
+            lambda: ListTransfersUseCase(self._transfer_repo).execute(inp)
+        )
+        return [asdict(item) for item in result]
 
     async def reverse(self, inp: ReverseTransferInput) -> dict:
         result = await self._run_write(

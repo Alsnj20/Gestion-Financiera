@@ -45,3 +45,27 @@ def test_archive_category():
     cat = Category.create(user_id="user-123", name="Test")
     archived = cat.archive()
     assert archived.status == CategoryStatus.ARCHIVED
+
+
+def test_create_category_with_visual():
+    cat = Category.create(
+        user_id="user-123",
+        name="Comida",
+        icon="IconShoppingCart",
+        color="#F79009",
+    )
+    assert cat.icon == "IconShoppingCart"
+    assert cat.color == "#F79009"
+
+
+def test_change_visual():
+    cat = Category.create(user_id="user-123", name="Comida")
+    updated = cat.change_visual("IconCar", "#2E90FA")
+    assert updated.icon == "IconCar"
+    assert updated.color == "#2E90FA"
+
+
+def test_icon_too_long():
+    with pytest.raises(ValidationError) as exc_info:
+        Category.create(user_id="user-123", name="Test", icon="x" * 41)
+    assert exc_info.value.code == "CAT_ICON_TOO_LONG"

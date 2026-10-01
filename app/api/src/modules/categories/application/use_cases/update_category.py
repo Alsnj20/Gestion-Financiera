@@ -20,6 +20,8 @@ class UpdateCategoryInput:
     name: str | None = None
     type: str | None = None
     parent_id: str | None = None
+    icon: str | None = None
+    color: str | None = None
 
 
 class UpdateCategoryUseCase:
@@ -64,6 +66,9 @@ class UpdateCategoryUseCase:
 
         if inp.type is not None:
             category = category.change_type(inp.type)
+
+        if inp.icon is not None or inp.color is not None:
+            category = category.change_visual(inp.icon, inp.color)
 
         await self._repo.save(category)
 

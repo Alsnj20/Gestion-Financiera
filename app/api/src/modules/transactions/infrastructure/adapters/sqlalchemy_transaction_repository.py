@@ -44,7 +44,7 @@ class SqlAlchemyTransactionRepository(TransactionRepositoryPort):
             existing.amount = tx.amount
             existing.currency = tx.currency
             existing.transaction_date = tx.transaction_date
-            existing.description = tx.description
+            existing.concepto = tx.concepto
             existing.category_id = (
                 uuid.UUID(tx.category_id) if _is_uuid(tx.category_id) else None
             )

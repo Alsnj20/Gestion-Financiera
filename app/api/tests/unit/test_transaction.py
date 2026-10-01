@@ -15,7 +15,7 @@ def test_create_expense():
         account_id="account-123",
         amount=Decimal("50.00"),
         currency="PEN",
-        description="Compra en tienda",
+        concepto="Compra en tienda",
     )
     assert tx.type == TransactionType.EXPENSE
     assert tx.amount == Decimal("50.00")
@@ -29,7 +29,7 @@ def test_create_income():
         account_id="account-123",
         amount=Decimal("1000.00"),
         currency="PEN",
-        description="Salario",
+        concepto="Salario",
     )
     assert tx.type == TransactionType.INCOME
     assert tx.amount == Decimal("1000.00")
@@ -75,15 +75,15 @@ def test_cancel_transaction():
     assert cancelled.status == TransactionStatus.CANCELLED
 
 
-def test_description_too_long():
+def test_concepto_too_long():
     with pytest.raises(ValidationError) as exc_info:
         Transaction.create_expense(
             user_id="user-123",
             account_id="account-123",
             amount=Decimal("50.00"),
-            description="x" * 501,
+            concepto="x" * 501,
         )
-    assert exc_info.value.code == "TX_DESC_TOO_LONG"
+    assert exc_info.value.code == "TX_CONCEPTO_TOO_LONG"
 
 
 def test_is_expense():

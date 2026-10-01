@@ -153,7 +153,7 @@ async def test_create_transaction_with_balance_update():
             "account_id": account_id,
             "type": "INCOME",
             "amount": 500,
-            "description": "Salario",
+            "concepto": "Salario",
         }, headers={"Authorization": f"Bearer {token}"})
         assert income_response.status_code == 201
 
@@ -163,7 +163,7 @@ async def test_create_transaction_with_balance_update():
             "account_id": account_id,
             "type": "EXPENSE",
             "amount": 200,
-            "description": "Compra",
+            "concepto": "Compra",
         }, headers={"Authorization": f"Bearer {token}"})
         assert expense_response.status_code == 201
 

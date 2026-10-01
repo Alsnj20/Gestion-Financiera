@@ -22,7 +22,7 @@ def to_domain(model: TransactionModel) -> Transaction:
         amount=getattr(model, "amount", 0),
         currency=getattr(model, "currency", "PEN"),
         transaction_date=getattr(model, "transaction_date", None),
-        description=getattr(model, "description", "") or "",
+        concepto=getattr(model, "concepto", "") or "",
         category_id=str(model.category_id) if model.category_id else "",
         payment_method_id=str(model.payment_method_id)
         if model.payment_method_id
@@ -53,7 +53,7 @@ def to_model(domain: Transaction) -> TransactionModel:
         amount=domain.amount,
         currency=domain.currency,
         transaction_date=domain.transaction_date,
-        description=domain.description or "",
+        concepto=domain.concepto or "",
         category_id=uuid.UUID(domain.category_id)
         if _is_uuid(domain.category_id)
         else None,

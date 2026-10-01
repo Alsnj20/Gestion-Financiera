@@ -25,7 +25,7 @@ class CreateTransactionInput:
     type: str  # "INCOME" o "EXPENSE"
     amount: Decimal
     currency: str = "PEN"
-    description: str = ""
+    concepto: str = ""
     category_id: str = ""
     payment_method_id: str = ""
     source: str = "MANUAL"
@@ -62,7 +62,7 @@ class CreateTransactionUseCase:
                 account_id=inp.account_id,
                 amount=inp.amount,
                 currency=inp.currency,
-                description=inp.description,
+                concepto=inp.concepto,
                 category_id=inp.category_id,
                 payment_method_id=inp.payment_method_id,
                 source=inp.source,
@@ -76,7 +76,7 @@ class CreateTransactionUseCase:
                 account_id=inp.account_id,
                 amount=inp.amount,
                 currency=inp.currency,
-                description=inp.description,
+                concepto=inp.concepto,
                 category_id=inp.category_id,
                 payment_method_id=inp.payment_method_id,
                 source=inp.source,

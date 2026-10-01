@@ -14,7 +14,7 @@ docs/
 # app/api/src/infrastructure/
 # app/api/src/shared/
 app/api/alembic/
-app/api/tests/
-# app/api/src/
+# app/api/tests/
+app/api/src/
 app/dash
 .opencode/

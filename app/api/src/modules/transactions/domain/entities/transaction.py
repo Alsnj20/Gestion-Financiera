@@ -11,7 +11,7 @@ from shared.domain.value_objects.money import Money
 from shared.errors import ValidationError
 from shared.types.enums import TransactionSource, TransactionStatus, TransactionType
 
-MAX_DESC_LEN = 500
+MAX_CONCEPTO_LEN = 500
 
 
 def _validate_id(value: object) -> str:
@@ -21,11 +21,11 @@ def _validate_id(value: object) -> str:
     return cleaned
 
 
-def _validate_description(description: object) -> str:
-    text = clean_str(description)
-    if len(text) > MAX_DESC_LEN:
+def _validate_concepto(concepto: object) -> str:
+    text = clean_str(concepto)
+    if len(text) > MAX_CONCEPTO_LEN:
         raise ValidationError(
-            code="TX_DESC_TOO_LONG", message=f"description excede {MAX_DESC_LEN}"
+            code="TX_CONCEPTO_TOO_LONG", message=f"concepto excede {MAX_CONCEPTO_LEN}"
         )
     return text
 
@@ -39,7 +39,7 @@ class Transaction:
     amount: Decimal  # siempre positivo; signo lo da type
     currency: str = "PEN"
     transaction_date: datetime = field(default_factory=_utcnow)
-    description: str = ""
+    concepto: str = ""
     category_id: str = ""  # "" = sin categoria
     payment_method_id: str = ""  # "" = sin medio
     source: TransactionSource = TransactionSource.MANUAL
@@ -61,7 +61,7 @@ class Transaction:
         object.__setattr__(self, "account_id", account_id)
         currency = clean_str(self.currency, "PEN").upper() or "PEN"
         object.__setattr__(self, "currency", currency)
-        object.__setattr__(self, "description", _validate_description(self.description))
+        object.__setattr__(self, "concepto", _validate_concepto(self.concepto))
         object.__setattr__(self, "category_id", clean_str(self.category_id))
         object.__setattr__(self, "payment_method_id", clean_str(self.payment_method_id))
         object.__setattr__(self, "type", TransactionType.safe(self.type))
@@ -94,7 +94,7 @@ class Transaction:
         account_id: str,
         amount: Decimal | str | float,
         currency: str = "PEN",
-        description: str = "",
+        concepto: str = "",
         category_id: str = "",
         payment_method_id: str = "",
         source: TransactionSource | str = TransactionSource.MANUAL,
@@ -106,7 +106,7 @@ class Transaction:
             account_id,
             amount,
             currency,
-            description,
+            concepto,
             category_id,
             payment_method_id,
             source,
@@ -121,7 +121,7 @@ class Transaction:
         account_id: str,
         amount: Decimal | str | float,
         currency: str = "PEN",
-        description: str = "",
+        concepto: str = "",
         category_id: str = "",
         payment_method_id: str = "",
         source: TransactionSource | str = TransactionSource.MANUAL,
@@ -133,7 +133,7 @@ class Transaction:
             account_id,
             amount,
             currency,
-            description,
+            concepto,
             category_id,
             payment_method_id,
             source,
@@ -148,7 +148,7 @@ class Transaction:
         account_id: str,
         amount: object,
         currency: str,
-        description: str,
+        concepto: str,
         category_id: str,
         payment_method_id: str,
         source: object,
@@ -164,7 +164,7 @@ class Transaction:
             amount=Money.from_value(amount, currency).amount,
             currency=currency,
             transaction_date=transaction_date or now,
-            description=description or "",
+            concepto=concepto or "",
             category_id=category_id or "",
             payment_method_id=payment_method_id or "",
             source=TransactionSource.safe(source),
@@ -184,7 +184,7 @@ class Transaction:
         amount: object,
         currency: object = "PEN",
         transaction_date: object = None,
-        description: object = "",
+        concepto: object = "",
         category_id: object = "",
         payment_method_id: object = "",
         source: object = TransactionSource.MANUAL,
@@ -206,7 +206,7 @@ class Transaction:
             transaction_date=transaction_date
             if isinstance(transaction_date, datetime)
             else _utcnow(),
-            description=clean_str(description, ""),
+            concepto=clean_str(concepto, ""),
             category_id=clean_str(category_id, ""),
             payment_method_id=clean_str(payment_method_id, ""),
             source=TransactionSource.safe(source),
@@ -231,16 +231,16 @@ class Transaction:
     def update_metadata(
         self,
         *,
-        description: str | None = None,
+        concepto: str | None = None,
         category_id: str | None = None,
         payment_method_id: str | None = None,
     ) -> Transaction:
         """Solo metadatos: amount/type/account_id son inmutables (integridad del ledger)."""
         self._ensure_mutable("editarse")
         return self._with(
-            description=_validate_description(description)
-            if description is not None
-            else self.description,
+            concepto=_validate_concepto(concepto)
+            if concepto is not None
+            else self.concepto,
             category_id=clean_str(category_id)
             if category_id is not None
             else self.category_id,
@@ -270,16 +270,16 @@ class Transaction:
             return self
         return self._with(status=TransactionStatus.CANCELLED)
 
-    def _ensure_mutable(self, action_description: str) -> None:
+    def _ensure_mutable(self, action: str) -> None:
         if self.status == TransactionStatus.CANCELLED:
             raise ValidationError(
                 code="TX_ALREADY_CANCELLED",
-                message=f"Transacción cancelada no puede {action_description}.",
+                message=f"Transacción cancelada no puede {action}.",
             )
         if self.is_transfer_leg():
             raise ValidationError(
                 code="TX_TRANSFER_LEG",
-                message=f"Pata de transferencia no puede {action_description} directamente.",
+                message=f"Pata de transferencia no puede {action} directamente.",
             )
 
     def _with(self, **kwargs: object) -> Transaction:  # type: ignore[no-untyped-def]
@@ -291,7 +291,7 @@ class Transaction:
             "amount": self.amount,
             "currency": self.currency,
             "transaction_date": self.transaction_date,
-            "description": self.description,
+            "concepto": self.concepto,
             "category_id": self.category_id,
             "payment_method_id": self.payment_method_id,
             "source": self.source,

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, status
 from composition import get_transfer_controller
 from modules.auth.presentation.dependencies import get_current_user, require_active_user
 from modules.transfers.application.use_cases.get_transfer import GetTransferInput
+from modules.transfers.application.use_cases.list_transfers import ListTransfersInput
 from modules.transfers.application.use_cases.reverse_transfer import (
     ReverseTransferInput,
 )
@@ -36,10 +37,24 @@ async def create_transfer(
     controller: TransferCtrl,
 ):
     # user_id sale del JWT, nunca del body.
-    result = await controller.create(
-        payload.to_input_dto(user_id=current_user["user_id"])
-    )
+    result = await controller.create(payload.to_input_dto(user_id=current_user["user_id"]))
     return TransferResponseSchema(**result)
+
+
+@router.get("/user/{user_id}", response_model=list[TransferResponseSchema])
+async def list_transfers_by_user(
+    user_id: str,
+    current_user: CurrentUser,
+    controller: TransferCtrl,
+):
+    result = await controller.list_by_user(
+        ListTransfersInput(
+            user_id=user_id,
+            requester_id=current_user["user_id"],
+            requester_role=current_user.get("role", "USER"),
+        )
+    )
+    return [TransferResponseSchema(**item) for item in result]
 
 
 @router.get("/{transfer_id}", response_model=TransferResponseSchema)

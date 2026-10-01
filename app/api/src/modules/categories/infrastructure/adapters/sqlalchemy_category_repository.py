@@ -45,6 +45,8 @@ class SqlAlchemyCategoryRepository(CategoryRepositoryPort):
                 if hasattr(category.status, "value")
                 else str(category.status)
             )
+            existing.icon = category.icon or ""
+            existing.color = category.color or ""
             existing.updated_at = category.updated_at
         else:
             self._session.add(to_model(category))

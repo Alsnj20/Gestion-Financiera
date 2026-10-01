@@ -11,6 +11,8 @@ from shared.errors import BusinessRuleError, ValidationError
 from shared.types.enums import CategoryStatus, CategoryType
 
 MAX_NAME_LEN = 80
+MAX_ICON_LEN = 40
+MAX_COLOR_LEN = 20
 
 
 def _validate_id(value: object) -> str:
@@ -31,6 +33,24 @@ def _validate_name(name: object) -> str:
     return text
 
 
+def _validate_icon(icon: object) -> str:
+    text = clean_str(icon)
+    if len(text) > MAX_ICON_LEN:
+        raise ValidationError(
+            code="CAT_ICON_TOO_LONG", message=f"icon excede {MAX_ICON_LEN}"
+        )
+    return text
+
+
+def _validate_color(color: object) -> str:
+    text = clean_str(color)
+    if len(text) > MAX_COLOR_LEN:
+        raise ValidationError(
+            code="CAT_COLOR_TOO_LONG", message=f"color excede {MAX_COLOR_LEN}"
+        )
+    return text
+
+
 @dataclass(slots=True, frozen=True)
 class Category:
     id: str
@@ -38,6 +58,8 @@ class Category:
     name: str
     type: CategoryType = CategoryType.BOTH
     parent_id: str = ""  # "" significa raíz; evita null
+    icon: str = ""
+    color: str = ""
     status: CategoryStatus = CategoryStatus.ACTIVE
     created_at: datetime = field(default_factory=_utcnow)
     updated_at: datetime = field(default_factory=_utcnow)
@@ -50,6 +72,8 @@ class Category:
         object.__setattr__(self, "user_id", user_id)
         object.__setattr__(self, "name", _validate_name(self.name))
         object.__setattr__(self, "parent_id", clean_str(self.parent_id))
+        object.__setattr__(self, "icon", _validate_icon(self.icon))
+        object.__setattr__(self, "color", _validate_color(self.color))
         object.__setattr__(self, "type", CategoryType.safe(self.type))
         object.__setattr__(self, "status", CategoryStatus.safe(self.status))
         if self.parent_id == self.id:
@@ -65,6 +89,8 @@ class Category:
         name: str,
         type: CategoryType | str = CategoryType.BOTH,
         parent_id: str = "",
+        icon: str = "",
+        color: str = "",
     ) -> Category:
         now = _utcnow()
         return cls(
@@ -73,6 +99,8 @@ class Category:
             name=name,
             type=CategoryType.safe(type),
             parent_id=clean_str(parent_id),
+            icon=_validate_icon(icon),
+            color=_validate_color(color),
             status=CategoryStatus.ACTIVE,
             created_at=now,
             updated_at=now,
@@ -87,6 +115,8 @@ class Category:
         name: object,
         type: object = CategoryType.BOTH,
         parent_id: object = "",
+        icon: object = "",
+        color: object = "",
         status: object = CategoryStatus.ACTIVE,
         created_at: object = None,
         updated_at: object = None,
@@ -97,6 +127,8 @@ class Category:
             name=clean_str(name, ""),
             type=CategoryType.safe(type),
             parent_id=clean_str(parent_id, ""),
+            icon=clean_str(icon, ""),
+            color=clean_str(color, ""),
             status=CategoryStatus.safe(status),
             created_at=created_at if isinstance(created_at, datetime) else _utcnow(),
             updated_at=updated_at if isinstance(updated_at, datetime) else _utcnow(),
@@ -135,6 +167,13 @@ class Category:
         self._ensure_active("editarse")
         return self._with(type=CategoryType.safe(category_type))
 
+    def change_visual(self, icon: str | None, color: str | None) -> Category:
+        self._ensure_active("editarse")
+        return self._with(
+            icon=_validate_icon(icon) if icon is not None else self.icon,
+            color=_validate_color(color) if color is not None else self.color,
+        )
+
     def reparent(self, parent_id: str | None) -> Category:
         self._ensure_active("editarse")
         new_parent = clean_str(parent_id)
@@ -158,6 +197,8 @@ class Category:
             "name": self.name,
             "type": self.type,
             "parent_id": self.parent_id,
+            "icon": self.icon,
+            "color": self.color,
             "status": self.status,
             "created_at": self.created_at,
             "updated_at": _utcnow(),

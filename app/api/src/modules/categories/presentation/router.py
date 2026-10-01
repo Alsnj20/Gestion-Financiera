@@ -96,6 +96,8 @@ async def update_category(
             name=payload.name,
             type=payload.type,
             parent_id=payload.parent_id,
+            icon=payload.icon,
+            color=payload.color,
         )
     )
     return CategoryResponseSchema(**result)

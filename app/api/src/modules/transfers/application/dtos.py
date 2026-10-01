@@ -37,4 +37,5 @@ def to_transfer_output(transfer: Transfer) -> TransferOutput:
 # Aliases de compatibilidad.
 CreateTransferOutput = TransferOutput
 GetTransferOutput = TransferOutput
+ListTransfersOutput = TransferOutput
 ReverseTransferOutput = TransferOutput

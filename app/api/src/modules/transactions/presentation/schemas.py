@@ -17,7 +17,7 @@ class CreateTransactionRequestSchema(BaseModel):
     type: str = Field(pattern="^(INCOME|EXPENSE)$")
     amount: Decimal = Field(gt=0)
     currency: str = Field(default="PEN", max_length=10)
-    description: str = Field(default="", max_length=500)
+    concepto: str = Field(default="", max_length=500)
     category_id: str = Field(default="", max_length=100)
     payment_method_id: str = Field(default="", max_length=100)
     source: str = Field(default="MANUAL", max_length=20)
@@ -31,7 +31,7 @@ class CreateTransactionRequestSchema(BaseModel):
             type=self.type,
             amount=self.amount,
             currency=self.currency,
-            description=self.description,
+            concepto=self.concepto,
             category_id=self.category_id,
             payment_method_id=self.payment_method_id,
             source=self.source,
@@ -42,7 +42,7 @@ class CreateTransactionRequestSchema(BaseModel):
 class UpdateTransactionRequestSchema(BaseModel):
     """Solo metadatos: amount/type/account_id/status no se editan por PUT."""
 
-    description: str | None = Field(default=None, max_length=500)
+    concepto: str | None = Field(default=None, max_length=500)
     category_id: str | None = Field(default=None, max_length=100)
     payment_method_id: str | None = Field(default=None, max_length=100)
 
@@ -56,7 +56,7 @@ class TransactionResponseSchema(BaseModel):
     type: str
     amount: Decimal
     currency: str
-    description: str
+    concepto: str
     category_id: str
     payment_method_id: str
     source: str

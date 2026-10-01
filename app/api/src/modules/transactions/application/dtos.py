@@ -20,7 +20,7 @@ class TransactionOutput:
     type: str
     amount: Decimal
     currency: str
-    description: str
+    concepto: str
     category_id: str
     payment_method_id: str
     source: str
@@ -36,7 +36,7 @@ def to_transaction_output(tx: Transaction) -> TransactionOutput:
         type=tx.type.value,
         amount=tx.amount,
         currency=tx.currency,
-        description=tx.description,
+        concepto=tx.concepto,
         category_id=tx.category_id,
         payment_method_id=tx.payment_method_id,
         source=tx.source.value,

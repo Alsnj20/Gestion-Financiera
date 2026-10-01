@@ -140,7 +140,7 @@ class RegisterDebtPaymentUseCase:
             account_id=account.id,
             amount=total,
             currency=account.currency,
-            description=description,
+            concepto=description,
             category_id=inp.category_id,
             payment_method_id=inp.payment_method_id,
             transaction_date=tx_datetime,

@@ -17,7 +17,7 @@ class UpdateTransactionInput:
     tx_id: str
     requester_id: str
     requester_role: str = "USER"
-    description: str | None = None
+    concepto: str | None = None
     category_id: str | None = None
     payment_method_id: str | None = None
 
@@ -49,7 +49,7 @@ class UpdateTransactionUseCase:
             )
 
         updated = tx.update_metadata(
-            description=inp.description,
+            concepto=inp.concepto,
             category_id=inp.category_id,
             payment_method_id=inp.payment_method_id,
         )
